@@ -1,23 +1,22 @@
 """
 Database integration tests.
-These tests verify that we can connect to PostgreSQL and perform CRUD operations.
+These tests verify that the app can connect to PostgreSQL and perform CRUD operations.
 """
 
 import os
 import pytest
-import psycopg
 from psycopg.rows import dict_row
 
+# Set test database environment variables before importing app
+# These match the GitHub Actions postgres service configuration
+os.environ.setdefault("DB_HOST", os.environ.get("DATABASE_HOST", "localhost"))
+os.environ.setdefault("DB_PORT", os.environ.get("DATABASE_PORT", "5432"))
+os.environ.setdefault("DB_NAME", os.environ.get("DATABASE_NAME", "testdb"))
+os.environ.setdefault("DB_USER", os.environ.get("DATABASE_USER", "testuser"))
+os.environ.setdefault("DB_PASSWORD", os.environ.get("DATABASE_PASSWORD", "testpass"))
 
-def get_db_connection():
-    """Create a database connection using environment variables."""
-    return psycopg.connect(
-        host=os.environ.get("DATABASE_HOST", "localhost"),
-        port=os.environ.get("DATABASE_PORT", "5432"),
-        dbname=os.environ.get("DATABASE_NAME", "testdb"),
-        user=os.environ.get("DATABASE_USER", "testuser"),
-        password=os.environ.get("DATABASE_PASSWORD", "testpass"),
-    )
+# Import the actual app code we're testing
+from app import get_db_connection, app
 
 
 @pytest.fixture
@@ -35,6 +34,14 @@ def db_cursor(db_connection):
     cursor = db_connection.cursor(row_factory=dict_row)
     yield cursor
     cursor.close()
+
+
+@pytest.fixture
+def client():
+    """Fixture that provides a Flask test client."""
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
 
 
 class TestDatabaseConnection:
@@ -58,140 +65,110 @@ class TestDatabaseConnection:
         assert "PostgreSQL" in result["version"]
 
 
-class TestInventoryTable:
-    """Tests for inventory table CRUD operations."""
+class TestInventoryAPI:
+    """Tests for the inventory API endpoints."""
 
     @pytest.fixture(autouse=True)
     def setup_inventory_table(self, db_connection, db_cursor):
-        """Create a test inventory table before each test."""
+        """Ensure inventory table exists and is empty before each test."""
         db_cursor.execute("""
             CREATE TABLE IF NOT EXISTS inventory (
                 id SERIAL PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                quantity INTEGER NOT NULL DEFAULT 0,
-                price DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                name TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                price REAL NOT NULL
             )
         """)
+        db_cursor.execute("DELETE FROM inventory")
         db_connection.commit()
         yield
-        # Cleanup: drop the table after each test
-        db_cursor.execute("DROP TABLE IF EXISTS inventory")
+        # Cleanup after test
+        db_cursor.execute("DELETE FROM inventory")
         db_connection.commit()
 
-    def test_create_inventory_item(self, db_connection, db_cursor):
-        """Test inserting a new item into inventory."""
-        db_cursor.execute(
-            "INSERT INTO inventory (name, quantity, price) VALUES (%s, %s, %s) RETURNING id",
-            ("Widget", 10, 9.99)
-        )
-        result = db_cursor.fetchone()
-        db_connection.commit()
-        
-        assert result["id"] is not None
-        assert result["id"] > 0
+    def test_get_items_empty(self, client):
+        """Test GET /items returns empty list when no items exist."""
+        response = client.get('/items')
+        assert response.status_code == 200
+        assert response.json == []
 
-    def test_read_inventory_item(self, db_connection, db_cursor):
-        """Test reading an item from inventory."""
-        # Insert an item
-        db_cursor.execute(
-            "INSERT INTO inventory (name, quantity, price) VALUES (%s, %s, %s) RETURNING id",
-            ("Gadget", 5, 19.99)
-        )
-        inserted_id = db_cursor.fetchone()["id"]
-        db_connection.commit()
-        
-        # Read it back
-        db_cursor.execute("SELECT * FROM inventory WHERE id = %s", (inserted_id,))
-        result = db_cursor.fetchone()
-        
-        assert result["name"] == "Gadget"
-        assert result["quantity"] == 5
-        assert float(result["price"]) == 19.99
+    def test_add_item(self, client):
+        """Test POST /items creates a new item."""
+        response = client.post('/items', json={
+            'name': 'Widget',
+            'quantity': 10,
+            'price': 9.99
+        })
+        assert response.status_code == 201
+        data = response.json
+        assert data['name'] == 'Widget'
+        assert data['quantity'] == 10
+        assert data['price'] == 9.99
+        assert 'id' in data
 
-    def test_update_inventory_item(self, db_connection, db_cursor):
-        """Test updating an item in inventory."""
-        # Insert an item
-        db_cursor.execute(
-            "INSERT INTO inventory (name, quantity, price) VALUES (%s, %s, %s) RETURNING id",
-            ("Gizmo", 3, 29.99)
-        )
-        inserted_id = db_cursor.fetchone()["id"]
-        db_connection.commit()
-        
-        # Update the quantity
-        db_cursor.execute(
-            "UPDATE inventory SET quantity = %s WHERE id = %s",
-            (10, inserted_id)
-        )
-        db_connection.commit()
-        
-        # Verify the update
-        db_cursor.execute("SELECT quantity FROM inventory WHERE id = %s", (inserted_id,))
-        result = db_cursor.fetchone()
-        
-        assert result["quantity"] == 10
+    def test_add_item_missing_fields(self, client):
+        """Test POST /items returns error when fields are missing."""
+        response = client.post('/items', json={
+            'name': 'Widget'
+            # missing quantity and price
+        })
+        assert response.status_code == 400
+        assert 'error' in response.json
 
-    def test_delete_inventory_item(self, db_connection, db_cursor):
-        """Test deleting an item from inventory."""
-        # Insert an item
-        db_cursor.execute(
-            "INSERT INTO inventory (name, quantity, price) VALUES (%s, %s, %s) RETURNING id",
-            ("Thingamajig", 1, 99.99)
-        )
-        inserted_id = db_cursor.fetchone()["id"]
-        db_connection.commit()
+    def test_get_items_after_adding(self, client):
+        """Test GET /items returns items after adding them."""
+        # Add an item
+        client.post('/items', json={
+            'name': 'Gadget',
+            'quantity': 5,
+            'price': 19.99
+        })
+        
+        # Get all items
+        response = client.get('/items')
+        assert response.status_code == 200
+        items = response.json
+        assert len(items) == 1
+        assert items[0]['name'] == 'Gadget'
+
+    def test_delete_item(self, client):
+        """Test DELETE /items/<id> removes an item."""
+        # Add an item
+        add_response = client.post('/items', json={
+            'name': 'Gizmo',
+            'quantity': 3,
+            'price': 29.99
+        })
+        item_id = add_response.json['id']
         
         # Delete it
-        db_cursor.execute("DELETE FROM inventory WHERE id = %s", (inserted_id,))
-        db_connection.commit()
+        delete_response = client.delete(f'/items/{item_id}')
+        assert delete_response.status_code == 200
         
         # Verify it's gone
-        db_cursor.execute("SELECT * FROM inventory WHERE id = %s", (inserted_id,))
-        result = db_cursor.fetchone()
-        
-        assert result is None
+        get_response = client.get('/items')
+        assert get_response.json == []
 
-    def test_list_all_inventory_items(self, db_connection, db_cursor):
-        """Test listing all items in inventory."""
-        # Insert multiple items
-        items = [
-            ("Item A", 10, 5.00),
-            ("Item B", 20, 10.00),
-            ("Item C", 30, 15.00),
-        ]
-        for name, qty, price in items:
-            db_cursor.execute(
-                "INSERT INTO inventory (name, quantity, price) VALUES (%s, %s, %s)",
-                (name, qty, price)
-            )
-        db_connection.commit()
+    def test_full_crud_workflow(self, client):
+        """Test a complete create, read, delete workflow."""
+        # Create
+        create_response = client.post('/items', json={
+            'name': 'Test Item',
+            'quantity': 100,
+            'price': 49.99
+        })
+        assert create_response.status_code == 201
+        item_id = create_response.json['id']
         
-        # List all items
-        db_cursor.execute("SELECT * FROM inventory ORDER BY name")
-        results = db_cursor.fetchall()
+        # Read
+        read_response = client.get('/items')
+        assert len(read_response.json) == 1
+        assert read_response.json[0]['id'] == item_id
         
-        assert len(results) == 3
-        assert results[0]["name"] == "Item A"
-        assert results[1]["name"] == "Item B"
-        assert results[2]["name"] == "Item C"
-
-    def test_calculate_total_inventory_value(self, db_connection, db_cursor):
-        """Test calculating total inventory value using SQL."""
-        # Insert items
-        items = [
-            ("Widget", 10, 9.99),   # 99.90
-            ("Gadget", 5, 19.99),   # 99.95
-        ]
-        for name, qty, price in items:
-            db_cursor.execute(
-                "INSERT INTO inventory (name, quantity, price) VALUES (%s, %s, %s)",
-                (name, qty, price)
-            )
-        db_connection.commit()
+        # Delete
+        delete_response = client.delete(f'/items/{item_id}')
+        assert delete_response.status_code == 200
         
-        # Calculate total value
-        db_cursor.execute("SELECT SUM(quantity * price) as total_value FROM inventory")
-        result = db_cursor.fetchone()
-        
-        assert float(result["total_value"]) == pytest.approx(199.85, rel=1e-2)
+        # Verify deleted
+        final_response = client.get('/items')
+        assert final_response.json == []
