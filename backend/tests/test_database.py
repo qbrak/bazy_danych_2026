@@ -5,16 +5,16 @@ These tests verify that we can connect to PostgreSQL and perform CRUD operations
 
 import os
 import pytest
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 
 
 def get_db_connection():
     """Create a database connection using environment variables."""
-    return psycopg2.connect(
+    return psycopg.connect(
         host=os.environ.get("DATABASE_HOST", "localhost"),
         port=os.environ.get("DATABASE_PORT", "5432"),
-        database=os.environ.get("DATABASE_NAME", "testdb"),
+        dbname=os.environ.get("DATABASE_NAME", "testdb"),
         user=os.environ.get("DATABASE_USER", "testuser"),
         password=os.environ.get("DATABASE_PASSWORD", "testpass"),
     )
@@ -32,7 +32,7 @@ def db_connection():
 @pytest.fixture
 def db_cursor(db_connection):
     """Fixture that provides a database cursor."""
-    cursor = db_connection.cursor(cursor_factory=RealDictCursor)
+    cursor = db_connection.cursor(row_factory=dict_row)
     yield cursor
     cursor.close()
 
