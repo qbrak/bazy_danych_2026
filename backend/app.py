@@ -1,22 +1,37 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg
+from psycopg.rows import dict_row
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 import time
 
-# Load environment variables from .env file
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
+# Find .env file - look in parent directory (project root)
+def load_env():
+    # Get the directory where app.py is located
+    app_dir = Path(__file__).resolve().parent
+    # Project root is one level up from backend/
+    project_root = app_dir.parent
+    env_path = project_root / '.env'
+    
+    if env_path.exists():
+        load_dotenv(env_path)
+        print(f"Loaded environment from: {env_path}")
+    else:
+        print(f"WARNING: .env file not found at {env_path}")
+        print("Using default values or environment variables.")
+
+load_env()
 
 app = Flask(__name__)
 CORS(app)
 
 def get_db_connection():
-    conn = psycopg2.connect(
+    conn = psycopg.connect(
         host=os.environ.get('DB_HOST', 'localhost'),
         port=os.environ.get('DB_PORT', '5432'),
-        database=os.environ.get('DB_NAME', 'inventory_db'),
+        dbname=os.environ.get('DB_NAME', 'inventory_db'),
         user=os.environ.get('DB_USER', 'inventory_user'),
         password=os.environ.get('DB_PASSWORD', 'secure_password')
     )
@@ -51,7 +66,7 @@ def init_db():
 def get_items():
     try:
         conn = get_db_connection()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor = conn.cursor(row_factory=dict_row)
         cursor.execute('SELECT * FROM inventory')
         items = cursor.fetchall()
         cursor.close()

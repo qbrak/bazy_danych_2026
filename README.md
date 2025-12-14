@@ -24,9 +24,9 @@ This is a simple inventory management application using Electron for the fronten
     ```bash
     cd backend
     python3 -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    source venv/bin/activate  # On Windows: venv\Scripts\activate or venv\Scripts\Activate.ps1
     pip install -r requirements.txt
-    cd ..
+    cd .. 
     ```
 
 3.  **Database Setup:**
@@ -58,6 +58,8 @@ This is a simple inventory management application using Electron for the fronten
     DB_USER=inventory_user
     DB_PASSWORD=secure_password
     ```
+
+    Note that the default `DB_PORT` for `.env` and `.env.example` is set to 5433 instead of 5432 to not conflict with local servers that could be running. 
 
 ## Running the App
 
