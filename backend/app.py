@@ -37,82 +37,179 @@ def get_db_connection():
     )
     return conn
 
-def init_db():
-    retries = 5
-    while retries > 0:
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS inventory (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    price REAL NOT NULL
-                )
-            ''')
-            conn.commit()
-            cursor.close()
-            conn.close()
-            print("Database initialized successfully.")
-            return
-        except Exception as e:
-            print(f"Error initializing database: {e}")
-            print(f"Retrying in 2 seconds... ({retries} retries left)")
-            time.sleep(2)
-            retries -= 1
+# =============================================================================
+# ORDERS (Primary Resource)
+# =============================================================================
 
-@app.route('/items', methods=['GET'])
-def get_items():
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor(row_factory=dict_row)
-        cursor.execute('SELECT * FROM inventory')
-        items = cursor.fetchall()
-        cursor.close()
-        conn.close()
-        return jsonify(items)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.route('/orders', methods=['GET'])
+def get_orders():
+    """List all orders with optional filters: ?status_id=, ?user_id="""
+    pass
 
-@app.route('/items', methods=['POST'])
-def add_item():
-    data = request.json
-    name = data.get('name')
-    quantity = data.get('quantity')
-    price = data.get('price')
-    
-    if not name or quantity is None or price is None:
-        return jsonify({'error': 'Missing fields'}), 400
+@app.route('/orders/<int:order_id>', methods=['GET'])
+def get_order(order_id):
+    """Get single order with items and addresses"""
+    pass
 
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'INSERT INTO inventory (name, quantity, price) VALUES (%s, %s, %s) RETURNING id',
-            (name, quantity, price)
-        )
-        new_id = cursor.fetchone()[0]
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return jsonify({'id': new_id, 'name': name, 'quantity': quantity, 'price': price}), 201
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.route('/orders', methods=['POST'])
+def create_order():
+    """Create new order (can include items array)"""
+    pass
 
-@app.route('/items/<int:item_id>', methods=['DELETE'])
-def delete_item(item_id):
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM inventory WHERE id = %s', (item_id,))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        return jsonify({'message': 'Deleted'}), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@app.route('/orders/<int:order_id>', methods=['PATCH'])
+def update_order(order_id):
+    """Update order: status_id, payment_time, shipment_time"""
+    pass
+
+@app.route('/orders/<int:order_id>', methods=['DELETE'])
+def delete_order(order_id):
+    """Delete an order"""
+    pass
+
+
+# =============================================================================
+# ORDER ITEMS
+# =============================================================================
+
+@app.route('/orders/<int:order_id>/items', methods=['GET'])
+def get_order_items(order_id):
+    """Get items for an order"""
+    pass
+
+@app.route('/orders/<int:order_id>/items', methods=['POST'])
+def add_order_item(order_id):
+    """Add item to order: inventory_id, quantity"""
+    pass
+
+@app.route('/order-items/<int:item_id>', methods=['DELETE'])
+def delete_order_item(item_id):
+    """Remove item from order"""
+    pass
+
+
+# =============================================================================
+# USERS
+# =============================================================================
+
+@app.route('/users', methods=['GET'])
+def get_users():
+    """List all users"""
+    pass
+
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+    """Get user with addresses"""
+    pass
+
+@app.route('/users', methods=['POST'])
+def create_user():
+    """Create new user"""
+    pass
+
+@app.route('/users/<int:user_id>', methods=['PATCH'])
+def update_user(user_id):
+    """Update user: name, surname, email, phone, email_verified"""
+    pass
+
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """Delete user"""
+    pass
+
+
+# =============================================================================
+# ADDRESSES
+# =============================================================================
+
+@app.route('/users/<int:user_id>/addresses', methods=['GET'])
+def get_user_addresses(user_id):
+    """Get addresses for a user"""
+    pass
+
+@app.route('/addresses', methods=['POST'])
+def create_address():
+    """Create new address"""
+    pass
+
+@app.route('/addresses/<int:address_id>', methods=['PATCH'])
+def update_address(address_id):
+    """Update address"""
+    pass
+
+
+# =============================================================================
+# BOOKS
+# =============================================================================
+
+@app.route('/books', methods=['GET'])
+def get_books():
+    """List all books. Filters: ?search=, ?category_id=, ?author_id="""
+    pass
+
+@app.route('/books/<isbn>', methods=['GET'])
+def get_book(isbn):
+    """Get book with authors, categories, inventory"""
+    pass
+
+
+# =============================================================================
+# INVENTORY
+# =============================================================================
+
+@app.route('/inventory', methods=['GET'])
+def get_inventory():
+    """List all inventory. Filter: ?low_stock=true"""
+    """ This should be already split by warehouse location !!! """
+    pass
+
+@app.route('/inventory/<int:inventory_id>', methods=['PATCH'])
+def update_inventory(inventory_id):
+    """Update: quantity_reserved, reorder_threshold, unit_cost, last_restocked"""
+    pass
+
+
+# =============================================================================
+# STATUSES
+# =============================================================================
+
+@app.route('/statuses', methods=['GET'])
+def get_statuses():
+    """List all order statuses"""
+    pass
+
+
+# =============================================================================
+# AUTHORS
+# =============================================================================
+
+@app.route('/authors', methods=['GET'])
+def get_authors():
+    """List all authors"""
+    pass
+
+@app.route('/authors', methods=['POST'])
+def create_author():
+    """Create new author: name"""
+    pass
+
+
+# =============================================================================
+# CATEGORIES
+# =============================================================================
+
+@app.route('/categories', methods=['GET'])
+def get_categories():
+    """List all categories"""
+    pass
+
+# =============================================================================
+# REVIEWS
+# =============================================================================
+
+@app.route('/books/<isbn>/reviews', methods=['GET'])
+def get_book_reviews(isbn):
+    """Get reviews for a book"""
+    pass
 
 if __name__ == '__main__':
-    init_db()
     app.run(port=5000)
