@@ -1,11 +1,10 @@
 import psycopg
-from psycopg.rows import dict_row
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-import time
+from textwrap import dedent
 
 # Find .env file - look in parent directory (project root)
 def load_env():
@@ -27,7 +26,7 @@ load_env()
 app = Flask(__name__)
 CORS(app)
 
-def get_db_connection():
+def get_db_connection() -> psycopg.Connection:
     conn = psycopg.connect(
         host=os.environ.get('DB_HOST', 'localhost'),
         port=os.environ.get('DB_PORT', '5432'),
@@ -44,27 +43,27 @@ def get_db_connection():
 @app.route('/orders', methods=['GET'])
 def get_orders():
     """List all orders with optional filters: ?status_id=, ?user_id="""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
     """Get single order with items and addresses"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/orders', methods=['POST'])
 def create_order():
     """Create new order (can include items array)"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/orders/<int:order_id>', methods=['PATCH'])
 def update_order(order_id):
     """Update order: status_id, payment_time, shipment_time"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/orders/<int:order_id>', methods=['DELETE'])
 def delete_order(order_id):
     """Delete an order"""
-    pass
+    return jsonify(None), 500 #TODO
 
 
 # =============================================================================
@@ -74,17 +73,17 @@ def delete_order(order_id):
 @app.route('/orders/<int:order_id>/items', methods=['GET'])
 def get_order_items(order_id):
     """Get items for an order"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/orders/<int:order_id>/items', methods=['POST'])
 def add_order_item(order_id):
     """Add item to order: inventory_id, quantity"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/order-items/<int:item_id>', methods=['DELETE'])
 def delete_order_item(item_id):
     """Remove item from order"""
-    pass
+    return jsonify(None), 500 #TODO
 
 
 # =============================================================================
@@ -94,27 +93,27 @@ def delete_order_item(item_id):
 @app.route('/users', methods=['GET'])
 def get_users():
     """List all users"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
     """Get user with addresses"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/users', methods=['POST'])
 def create_user():
     """Create new user"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/users/<int:user_id>', methods=['PATCH'])
 def update_user(user_id):
     """Update user: name, surname, email, phone, email_verified"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
     """Delete user"""
-    pass
+    return jsonify(None), 500 #TODO
 
 
 # =============================================================================
@@ -124,17 +123,17 @@ def delete_user(user_id):
 @app.route('/users/<int:user_id>/addresses', methods=['GET'])
 def get_user_addresses(user_id):
     """Get addresses for a user"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/addresses', methods=['POST'])
 def create_address():
     """Create new address"""
-    pass
+    return jsonify(None), 500 #TODO
 
 @app.route('/addresses/<int:address_id>', methods=['PATCH'])
 def update_address(address_id):
     """Update address"""
-    pass
+    return jsonify(None), 500 #TODO
 
 
 # =============================================================================
@@ -143,14 +142,99 @@ def update_address(address_id):
 
 @app.route('/books', methods=['GET'])
 def get_books():
-    """List all books. Filters: ?search=, ?category_id=, ?author_id="""
-    pass
+    """
+    List all books. Filters: ?search=, ?category_id=, ?author_id=
+    
+    Setting search will find all books that contain given string in their title
+    """
+    search = request.args.get('search', type=str)
+    category_id = request.args.get('category_id', type=int)
+    author_id = request.args.get('author_id', type=str)
+    
+    query = dedent("""\
+        SELECT DISTINCT isbn, title, publication_year FROM books
+        JOIN book_categories USING (isbn)
+        JOIN authorship USING (isbn)
+        WHERE 1=1
+        """
+    )
+    
+    if search is not None: 
+        query = query + f" AND title LIKE '%{search}%'"
+        
+    if category_id is not None:
+        query = query + f" AND category_id = {category_id}"
+        
+    if author_id is not None:
+        query = query + f" AND author_id = '{author_id}'"
+    
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 
 @app.route('/books/<isbn>', methods=['GET'])
 def get_book(isbn):
-    """Get book with authors, categories, inventory"""
-    pass
+    """Get book title, publication year, inventory id and stocked quantity
+    
+    This uses LEFT OUTER JOIN, so if the book is not stocked,
+    the latter values will be NULL
+    """
+    
+    query = dedent(f"""\
+        SELECT title, publication_year, inventory_id, quantity FROM books
+        LEFT OUTER JOIN inventory USING (isbn)
+        LEFT OUTER JOIN inventory_stock USING (inventory_id)
+        WHERE isbn = '{isbn}'
+        """
+    )
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
+@app.route('/books/<isbn>/authors', methods=['GET'])
+def get_book_authors(isbn):
+    """Get all authors of a book"""
+    
+    query = dedent(f"""\
+        SELECT author_id, name FROM authors
+        JOIN authorship USING (author_id)
+        WHERE isbn = '{isbn}'
+        """
+    )
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/books/<isbn>/categories', methods=['GET'])
+def get_book_categories(isbn):
+    """Get all categories that the book is in"""
+    
+    query = dedent(f"""\
+        SELECT category_id, category_name FROM categories
+        JOIN book_categories USING (category_id)
+        WHERE isbn = '{isbn}'
+        """
+    )
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # =============================================================================
 # INVENTORY
@@ -158,15 +242,59 @@ def get_book(isbn):
 
 @app.route('/inventory', methods=['GET'])
 def get_inventory():
-    """List all inventory. Filter: ?low_stock=true"""
-    """ This should be already split by warehouse location !!! """
-    pass
+    """List all inventory. Filter: ?low_stock=true
+
+    This contains stock summed from all warehouse locations.
+    To see all locations and how much stock is in each of them access the
+    /warehouse/<int:inventory_id> endpoint
+    """
+    
+    low_stock = request.args.get('low_stock', type=str)
+    if low_stock is not None:
+        return jsonify({'error': "low stock argument is not yet handled"}), 500 #TODO
+    
+    query = dedent("""\
+        SELECT * FROM inventory
+        LEFT OUTER JOIN inventory_stock USING (inventory_id)
+        """
+    )
+    
+   
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/inventory/<int:inventory_id>', methods=['PATCH'])
 def update_inventory(inventory_id):
     """Update: quantity_reserved, reorder_threshold, unit_cost, last_restocked"""
-    pass
+    return jsonify(None), 500 #TODO
 
+
+# =============================================================================
+# WAREHOUSE
+# =============================================================================
+
+@app.route('/inventory/<int:inventory_id>', methods=['GET'])
+def get_warehouse(inventory_id):
+    """List all warehouse locations where this inventory is kept, including the stocked quantity"""
+    query = dedent(f"""\
+        SELECT * FROM warehouse
+        WHERE inventory_id = {inventory_id}
+        """
+    )
+    
+   
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # =============================================================================
 # STATUSES
@@ -175,7 +303,16 @@ def update_inventory(inventory_id):
 @app.route('/statuses', methods=['GET'])
 def get_statuses():
     """List all order statuses"""
-    pass
+    
+    query = "SELECT * FROM statuses"   
+   
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # =============================================================================
@@ -185,12 +322,20 @@ def get_statuses():
 @app.route('/authors', methods=['GET'])
 def get_authors():
     """List all authors"""
-    pass
+    query = "SELECT * FROM authors"   
+   
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/authors', methods=['POST'])
 def create_author():
     """Create new author: name"""
-    pass
+    return jsonify(None), 500 #TODO
 
 
 # =============================================================================
@@ -200,7 +345,15 @@ def create_author():
 @app.route('/categories', methods=['GET'])
 def get_categories():
     """List all categories"""
-    pass
+    query = "SELECT * FROM categories"   
+   
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # =============================================================================
 # REVIEWS
@@ -209,7 +362,15 @@ def get_categories():
 @app.route('/books/<isbn>/reviews', methods=['GET'])
 def get_book_reviews(isbn):
     """Get reviews for a book"""
-    pass
+    query = f"SELECT * FROM reviews WHERE isbn = '{isbn}'"   
+   
+    try:
+        with get_db_connection() as conn, conn.cursor() as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(port=5000)

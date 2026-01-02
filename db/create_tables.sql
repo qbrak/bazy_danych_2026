@@ -80,7 +80,7 @@ CREATE TABLE warehouse(
 );
 
 CREATE VIEW inventory_stock AS (
-    SELECT inventory_id, sum(quantity) 
+    SELECT inventory_id, sum(quantity) AS quantity
     FROM warehouse
     GROUP BY inventory_id
 );
