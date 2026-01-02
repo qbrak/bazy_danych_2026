@@ -1,10 +1,27 @@
+DROP TABLE IF EXISTS authors CASCADE;
+DROP TABLE IF EXISTS books CASCADE;
+DROP TABLE IF EXISTS authorship CASCADE;
+DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS book_categories CASCADE;
+DROP TABLE IF EXISTS inventory CASCADE;
+DROP TABLE IF EXISTS warehouse CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS addresses CASCADE;
+DROP TABLE IF EXISTS reviews CASCADE;
+DROP TABLE IF EXISTS statuses CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS order_items CASCADE;
+
+DROP VIEW IF EXISTS inventory_stock CASCADE;
 
 -- Tables about books:
 
+
 CREATE TABLE authors(
-    author_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    author_id TEXT PRIMARY KEY,
     name      TEXT NOT NULL
 );
+
 
 CREATE TABLE books(
     isbn             TEXT PRIMARY KEY,
@@ -14,15 +31,18 @@ CREATE TABLE books(
     CHECK (length(isbn) = 10 OR length(isbn) = 13)
 );
 
+
 CREATE TABLE authorship(
-    author_id INTEGER NOT NULL REFERENCES authors(author_id) ON DELETE RESTRICT ON UPDATE CASCADE
     isbn      TEXT NOT NULL REFERENCES books(isbn) ON DELETE RESTRICT ON UPDATE CASCADE,
+    author_id TEXT NOT NULL REFERENCES authors(author_id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
+
 
 CREATE TABLE categories(
     category_id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     category_name TEXT NOT NULL UNIQUE
 );
+
 
 CREATE TABLE book_categories(
     isbn        TEXT NOT NULL REFERENCES books(isbn) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -32,6 +52,7 @@ CREATE TABLE book_categories(
 
 
 -- Inventory tables:
+
 
 CREATE TABLE inventory(
     inventory_id      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -46,6 +67,7 @@ CREATE TABLE inventory(
     CHECK (reorder_threshold >= 0)
 );
 
+
 CREATE TABLE warehouse(
     shelf_nr     INTEGER CHECK (shelf_nr >=0),
     shelf_level  INTEGER CHECK (shelf_level >=0),
@@ -54,17 +76,18 @@ CREATE TABLE warehouse(
     quantity     INTEGER NOT NULL DEFAULT 0,
     
     PRIMARY KEY (shelf_nr, shelf_level, shelf_offset),
-    CHECK (quantity >= 0),
+    CHECK (quantity >= 0)
 );
 
 CREATE VIEW inventory_stock AS (
-    SELECT inventory_id, sum(quantity_in_stock) 
+    SELECT inventory_id, sum(quantity) 
     FROM warehouse
     GROUP BY inventory_id
 );
 
 
 -- Tables about users:
+
 
 CREATE TABLE users(
     user_id        INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -75,6 +98,7 @@ CREATE TABLE users(
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
     phone          VARCHAR(20)
 );
+
 
 CREATE TABLE addresses(
     address_id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -88,6 +112,7 @@ CREATE TABLE addresses(
     country      varchar(100) NOT NULL,
     is_primary   BOOLEAN NOT NULL
 );
+
 
 CREATE TABLE reviews(
     review_id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -103,10 +128,12 @@ CREATE TABLE reviews(
 
 -- Tables about orders:
 
+
 CREATE TABLE statuses(
     status_id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     status_name TEXT NOT NULL UNIQUE
 );
+
 
 CREATE TABLE orders(
     order_id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -120,6 +147,7 @@ CREATE TABLE orders(
     status_id           INTEGER REFERENCES statuses(status_id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+
 CREATE TABLE order_items(
     id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     order_id     INTEGER NOT NULL REFERENCES orders(order_id) ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -130,5 +158,9 @@ CREATE TABLE order_items(
 
 -- Populate the `statuses` enumeration table:
 INSERT INTO statuses(status_name) VALUES 
-    ('Oczekujące'), ('Opłacone'), ('W realizacji'), ('Wysłane'), ('Dostarczone'), ('Anulowane')
+    ('Oczekujące'), ('W realizacji'), ('Wysłane'), ('Dostarczone'), ('Anulowane')
+;
+
+INSERT INTO categories(category_name) VALUES
+    ('databases'), ('political_studies'), ('horror'), ('psychology'), ('programming'), ('biology'), ('medicine'), ('literature')
 ;
