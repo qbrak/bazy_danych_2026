@@ -193,3 +193,32 @@ CREATE TRIGGER trg_validate_order_address_ownership
 BEFORE INSERT OR UPDATE ON orders
 FOR EACH ROW
 EXECUTE FUNCTION validate_order_address_ownership();
+
+
+CREATE OR REPLACE FUNCTION validate_at_most_one_primary_address()
+RETURNS TRIGGER AS $$
+DECLARE
+    primary_address_count INT;
+BEGIN
+    -- Only check if the NEW row is attempting to be primary
+    IF NEW.is_primary = TRUE THEN
+        SELECT count(*) INTO primary_address_count 
+            FROM addresses 
+            WHERE user_id = NEW.user_id 
+              AND is_primary = TRUE
+              -- If inserting new row, then NEW.address can be NULL so exclude this CASE
+              -- by using a value that cannot match any address_id
+              AND address_id != COALESCE(NEW.address_id, -1); 
+        
+        IF primary_address_count > 0 THEN
+            RAISE EXCEPTION 'At most one primary address is allowed per user';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validate_at_most_one_primary_address
+BEFORE INSERT OR UPDATE ON addresses
+FOR EACH ROW
+EXECUTE FUNCTION validate_at_most_one_primary_address();

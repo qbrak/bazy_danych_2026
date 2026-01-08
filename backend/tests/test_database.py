@@ -290,6 +290,175 @@ class TestOrderAddressValidation:
         
         db_connection.rollback()
 
+    def test_user_can_have_one_primary_address(self, db_connection, db_cursor):
+        """Test that a user can have exactly one primary address."""
+        # Create a test user
+        db_cursor.execute("""
+            INSERT INTO users (name, surname, passhash, email)
+            VALUES ('Test', 'User', 'abc123hash456def789abc123hash456def789abc123hash456def789abc1', 'primary.test@example.com')
+            RETURNING user_id
+        """)
+        user_id = db_cursor.fetchone()["user_id"]
+        
+        # Insert a primary address - this should succeed
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'Main Street', 1, 'Wrocław', '50-001', 'Poland', TRUE)
+            RETURNING address_id
+        """, (user_id,))
+        
+        address_id = db_cursor.fetchone()["address_id"]
+        assert address_id is not None
+        
+        db_connection.rollback()
+
+    def test_user_cannot_have_multiple_primary_addresses(self, db_connection, db_cursor):
+        """Test that a user cannot have more than one primary address."""
+        # Create a test user
+        db_cursor.execute("""
+            INSERT INTO users (name, surname, passhash, email)
+            VALUES ('Test', 'User', 'abc123hash456def789abc123hash456def789abc123hash456def789abc1', 'multi.primary@example.com')
+            RETURNING user_id
+        """)
+        user_id = db_cursor.fetchone()["user_id"]
+        
+        # Insert first primary address
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'First Street', 1, 'Wrocław', '50-001', 'Poland', TRUE)
+        """, (user_id,))
+        
+        # Try to insert a second primary address - this should fail
+        with pytest.raises(psycopg.errors.RaiseException) as excinfo:
+            db_cursor.execute("""
+                INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+                VALUES (%s, 'Second Street', 2, 'Kraków', '30-001', 'Poland', TRUE)
+            """, (user_id,))
+        
+        assert "At most one primary address is allowed per user" in str(excinfo.value)
+        db_connection.rollback()
+
+    def test_user_can_have_multiple_non_primary_addresses(self, db_connection, db_cursor):
+        """Test that a user can have multiple non-primary addresses."""
+        # Create a test user
+        db_cursor.execute("""
+            INSERT INTO users (name, surname, passhash, email)
+            VALUES ('Test', 'User', 'abc123hash456def789abc123hash456def789abc123hash456def789abc1', 'non.primary@example.com')
+            RETURNING user_id
+        """)
+        user_id = db_cursor.fetchone()["user_id"]
+        
+        # Insert first non-primary address
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'First Street', 1, 'Wrocław', '50-001', 'Poland', FALSE)
+        """, (user_id,))
+        
+        # Insert second non-primary address - this should succeed
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'Second Street', 2, 'Kraków', '30-001', 'Poland', FALSE)
+            RETURNING address_id
+        """, (user_id,))
+        
+        address_id = db_cursor.fetchone()["address_id"]
+        assert address_id is not None
+        
+        db_connection.rollback()
+
+    def test_updating_address_to_primary_when_primary_exists_fails(self, db_connection, db_cursor):
+        """Test that updating a non-primary address to primary fails when a primary already exists."""
+        # Create a test user
+        db_cursor.execute("""
+            INSERT INTO users (name, surname, passhash, email)
+            VALUES ('Test', 'User', 'abc123hash456def789abc123hash456def789abc123hash456def789abc1', 'update.primary@example.com')
+            RETURNING user_id
+        """)
+        user_id = db_cursor.fetchone()["user_id"]
+        
+        # Insert a primary address
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'Primary Street', 1, 'Wrocław', '50-001', 'Poland', TRUE)
+        """, (user_id,))
+        
+        # Insert a non-primary address
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'Secondary Street', 2, 'Kraków', '30-001', 'Poland', FALSE)
+            RETURNING address_id
+        """, (user_id,))
+        
+        secondary_address_id = db_cursor.fetchone()["address_id"]
+        
+        # Try to update the non-primary address to be primary - this should fail
+        with pytest.raises(psycopg.errors.RaiseException) as excinfo:
+            db_cursor.execute("""
+                UPDATE addresses 
+                SET is_primary = TRUE 
+                WHERE address_id = %s
+            """, (secondary_address_id,))
+        
+        assert "At most one primary address is allowed per user" in str(excinfo.value)
+        db_connection.rollback()
+
+    def test_user_can_change_which_address_is_primary(self, db_connection, db_cursor):
+        """Test that a user can change which address is primary by first unsetting the old one."""
+        # Create a test user
+        db_cursor.execute("""
+            INSERT INTO users (name, surname, passhash, email)
+            VALUES ('Test', 'User', 'abc123hash456def789abc123hash456def789abc123hash456def789abc1', 'change.primary@example.com')
+            RETURNING user_id
+        """)
+        user_id = db_cursor.fetchone()["user_id"]
+        
+        # Insert a primary address
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'Old Primary', 1, 'Wrocław', '50-001', 'Poland', TRUE)
+            RETURNING address_id
+        """, (user_id,))
+        
+        old_primary_id = db_cursor.fetchone()["address_id"]
+        
+        # Insert a non-primary address
+        db_cursor.execute("""
+            INSERT INTO addresses (user_id, street, building_nr, city, postal_code, country, is_primary)
+            VALUES (%s, 'New Primary', 2, 'Kraków', '30-001', 'Poland', FALSE)
+            RETURNING address_id
+        """, (user_id,))
+        
+        new_primary_id = db_cursor.fetchone()["address_id"]
+        
+        # First, unset the old primary
+        db_cursor.execute("""
+            UPDATE addresses 
+            SET is_primary = FALSE 
+            WHERE address_id = %s
+        """, (old_primary_id,))
+        
+        # Then set the new primary - this should succeed
+        db_cursor.execute("""
+            UPDATE addresses 
+            SET is_primary = TRUE 
+            WHERE address_id = %s
+        """, (new_primary_id,))
+        
+        # Verify the change
+        db_cursor.execute("""
+            SELECT address_id, is_primary FROM addresses 
+            WHERE user_id = %s 
+            ORDER BY address_id
+        """, (user_id,))
+        
+        results = db_cursor.fetchall()
+        assert results[0]["address_id"] == old_primary_id
+        assert results[0]["is_primary"] == False
+        assert results[1]["address_id"] == new_primary_id
+        assert results[1]["is_primary"] == True
+        
+        db_connection.rollback()
+
 
 class TestDatabaseConstraints:
     """Tests for database constraints and referential integrity."""
@@ -341,3 +510,4 @@ class TestDatabaseConstraints:
             """, (user_result["user_id"], book_result["isbn"]))
         
         db_connection.rollback()
+
