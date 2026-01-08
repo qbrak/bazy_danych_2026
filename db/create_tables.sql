@@ -19,7 +19,8 @@ DROP VIEW IF EXISTS inventory_stock CASCADE;
 
 CREATE TABLE authors(
     author_id TEXT PRIMARY KEY,
-    name      TEXT NOT NULL
+    name           varchar(100) NOT NULL,
+    surname        varchar(50) -- can be NULL for organizations
 );
 
 
@@ -189,6 +190,6 @@ $$ LANGUAGE plpgsql;
 
 -- Attach trigger to Orders table
 CREATE TRIGGER trg_validate_order_address_ownership
-BEFORE INSERT OR UPDATE ON Orders
+BEFORE INSERT OR UPDATE ON orders
 FOR EACH ROW
 EXECUTE FUNCTION validate_order_address_ownership();
