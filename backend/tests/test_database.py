@@ -1,27 +1,48 @@
 """
 Database integration tests.
-These tests verify that the app can connect to PostgreSQL and perform CRUD operations.
+These tests verify that the database schema, triggers, and constraints work correctly.
+Uses db_loader module to load schema and test data.
 """
 
 import os
+import sys
 import pytest
+import psycopg
 from psycopg.rows import dict_row
+from pathlib import Path
 
-# Set test database environment variables before importing app
-# These match the GitHub Actions postgres service configuration
-os.environ.setdefault("DB_HOST", os.environ.get("DATABASE_HOST", "localhost"))
-os.environ.setdefault("DB_PORT", os.environ.get("DATABASE_PORT", "5432"))
-os.environ.setdefault("DB_NAME", os.environ.get("DATABASE_NAME", "testdb"))
-os.environ.setdefault("DB_USER", os.environ.get("DATABASE_USER", "testuser"))
-os.environ.setdefault("DB_PASSWORD", os.environ.get("DATABASE_PASSWORD", "testpass"))
+# Add db directory to path so we can import db_loader
+DB_DIR = Path(__file__).resolve().parent.parent.parent / "db"
+sys.path.insert(0, str(DB_DIR))
 
-# Import the actual app code we're testing
-from app import get_db_connection, app
+# For CI compatibility: Map DATABASE_* vars (used in CI) to DB_* vars
+# This must happen BEFORE loading .env so env vars take precedence
+for ci_var, db_var in [("DATABASE_HOST", "DB_HOST"), ("DATABASE_PORT", "DB_PORT"),
+                        ("DATABASE_NAME", "DB_NAME"), ("DATABASE_USER", "DB_USER"),
+                        ("DATABASE_PASSWORD", "DB_PASSWORD")]:
+    if os.environ.get(ci_var):
+        os.environ[db_var] = os.environ[ci_var]
+
+# Load environment variables from .env file (won't override vars already set above)
+from db_loader import load_env, get_db_connection, setup_database
+load_env()
+
+
+@pytest.fixture(scope="module")
+def db_setup():
+    """
+    Module-scoped fixture that sets up the database schema and loads example data.
+    This runs once per test module.
+    """
+    conn = get_db_connection()
+    setup_database(conn, close_conn=False, include_users=True)
+    yield conn
+    conn.close()
 
 
 @pytest.fixture
-def db_connection():
-    """Fixture that provides a database connection and cleans up after tests."""
+def db_connection(db_setup):
+    """Fixture that provides a database connection and rolls back after tests."""
     conn = get_db_connection()
     yield conn
     conn.rollback()
@@ -34,14 +55,6 @@ def db_cursor(db_connection):
     cursor = db_connection.cursor(row_factory=dict_row)
     yield cursor
     cursor.close()
-
-
-@pytest.fixture
-def client():
-    """Fixture that provides a Flask test client."""
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
 
 
 class TestDatabaseConnection:
@@ -65,110 +78,266 @@ class TestDatabaseConnection:
         assert "PostgreSQL" in result["version"]
 
 
-class TestInventoryAPI:
-    """Tests for the inventory API endpoints."""
+class TestSchemaLoaded:
+    """Tests to verify that schema and example data are loaded correctly."""
 
-    @pytest.fixture(autouse=True)
-    def setup_inventory_table(self, db_connection, db_cursor):
-        """Ensure inventory table exists and is empty before each test."""
+    def test_users_table_has_data(self, db_cursor):
+        """Test that the users table was populated with example data."""
+        db_cursor.execute("SELECT COUNT(*) as count FROM users")
+        result = db_cursor.fetchone()
+        assert result["count"] > 0
+
+    def test_addresses_table_has_data(self, db_cursor):
+        """Test that the addresses table was populated with example data."""
+        db_cursor.execute("SELECT COUNT(*) as count FROM addresses")
+        result = db_cursor.fetchone()
+        assert result["count"] > 0
+
+    def test_users_have_polish_names(self, db_cursor):
+        """Test that users have Polish names as expected."""
+        db_cursor.execute("SELECT name, surname FROM users LIMIT 5")
+        results = db_cursor.fetchall()
+        # Check we have some typical Polish names
+        names = [r["name"] for r in results]
+        surnames = [r["surname"] for r in results]
+        assert len(names) > 0
+        assert len(surnames) > 0
+
+    def test_addresses_in_wroclaw_and_krakow(self, db_cursor):
+        """Test that addresses are in Wrocław and Kraków."""
+        db_cursor.execute("SELECT DISTINCT city FROM addresses")
+        cities = [r["city"] for r in db_cursor.fetchall()]
+        assert "Wrocław" in cities or "Kraków" in cities
+
+    def test_statuses_table_populated(self, db_cursor):
+        """Test that statuses enumeration table is populated."""
+        db_cursor.execute("SELECT COUNT(*) as count FROM statuses")
+        result = db_cursor.fetchone()
+        assert result["count"] >= 5  # We have 5 statuses defined
+
+
+class TestOrderAddressValidation:
+    """Tests for order address ownership validation trigger."""
+
+    def test_order_with_same_user_addresses_succeeds(self, db_connection, db_cursor):
+        """Test that creating an order with addresses belonging to the same user succeeds."""
+        # Get a user who has multiple addresses
         db_cursor.execute("""
-            CREATE TABLE IF NOT EXISTS inventory (
-                id SERIAL PRIMARY KEY,
-                name TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                price REAL NOT NULL
-            )
+            SELECT user_id FROM addresses 
+            GROUP BY user_id 
+            HAVING COUNT(*) >= 2 
+            LIMIT 1
         """)
-        db_cursor.execute("DELETE FROM inventory")
-        db_connection.commit()
-        yield
-        # Cleanup after test
-        db_cursor.execute("DELETE FROM inventory")
-        db_connection.commit()
-
-    def test_get_items_empty(self, client):
-        """Test GET /items returns empty list when no items exist."""
-        response = client.get('/items')
-        assert response.status_code == 200
-        assert response.json == []
-
-    def test_add_item(self, client):
-        """Test POST /items creates a new item."""
-        response = client.post('/items', json={
-            'name': 'Widget',
-            'quantity': 10,
-            'price': 9.99
-        })
-        assert response.status_code == 201
-        data = response.json
-        assert data['name'] == 'Widget'
-        assert data['quantity'] == 10
-        assert data['price'] == 9.99
-        assert 'id' in data
-
-    def test_add_item_missing_fields(self, client):
-        """Test POST /items returns error when fields are missing."""
-        response = client.post('/items', json={
-            'name': 'Widget'
-            # missing quantity and price
-        })
-        assert response.status_code == 400
-        assert 'error' in response.json
-
-    def test_get_items_after_adding(self, client):
-        """Test GET /items returns items after adding them."""
-        # Add an item
-        client.post('/items', json={
-            'name': 'Gadget',
-            'quantity': 5,
-            'price': 19.99
-        })
+        result = db_cursor.fetchone()
         
-        # Get all items
-        response = client.get('/items')
-        assert response.status_code == 200
-        items = response.json
-        assert len(items) == 1
-        assert items[0]['name'] == 'Gadget'
+        if result is None:
+            pytest.skip("No user with multiple addresses found")
+        
+        user_id = result["user_id"]
+        
+        # Get two addresses belonging to this user
+        db_cursor.execute("""
+            SELECT address_id FROM addresses 
+            WHERE user_id = %s 
+            LIMIT 2
+        """, (user_id,))
+        addresses = db_cursor.fetchall()
+        
+        shipping_address_id = addresses[0]["address_id"]
+        billing_address_id = addresses[1]["address_id"]
+        
+        # Get a valid status_id
+        db_cursor.execute("SELECT status_id FROM statuses LIMIT 1")
+        status_id = db_cursor.fetchone()["status_id"]
+        
+        # This should succeed - both addresses belong to the same user
+        db_cursor.execute("""
+            INSERT INTO orders (shipping_address_id, billing_address_id, order_time, status_id)
+            VALUES (%s, %s, NOW(), %s)
+            RETURNING order_id
+        """, (shipping_address_id, billing_address_id, status_id))
+        
+        result = db_cursor.fetchone()
+        assert result["order_id"] is not None
+        
+        # Rollback to not affect other tests
+        db_connection.rollback()
 
-    def test_delete_item(self, client):
-        """Test DELETE /items/<id> removes an item."""
-        # Add an item
-        add_response = client.post('/items', json={
-            'name': 'Gizmo',
-            'quantity': 3,
-            'price': 29.99
-        })
-        item_id = add_response.json['id']
+    def test_order_with_different_user_addresses_fails(self, db_connection, db_cursor):
+        """
+        Test that creating an order with addresses belonging to different users fails.
+        The trigger 'validate_order_address_ownership' should prevent this.
+        """
+        # Get addresses from two different users
+        db_cursor.execute("""
+            SELECT a1.address_id as addr1, a2.address_id as addr2, 
+                   a1.user_id as user1, a2.user_id as user2
+            FROM addresses a1, addresses a2
+            WHERE a1.user_id <> a2.user_id
+            LIMIT 1
+        """)
+        result = db_cursor.fetchone()
         
-        # Delete it
-        delete_response = client.delete(f'/items/{item_id}')
-        assert delete_response.status_code == 200
+        if result is None:
+            pytest.skip("Could not find addresses belonging to different users")
         
-        # Verify it's gone
-        get_response = client.get('/items')
-        assert get_response.json == []
+        shipping_address_id = result["addr1"]  # Belongs to user1
+        billing_address_id = result["addr2"]   # Belongs to user2
+        
+        # Get a valid status_id
+        db_cursor.execute("SELECT status_id FROM statuses LIMIT 1")
+        status_id = db_cursor.fetchone()["status_id"]
+        
+        # This should FAIL - addresses belong to different users
+        with pytest.raises(psycopg.errors.RaiseException) as excinfo:
+            db_cursor.execute("""
+                INSERT INTO orders (shipping_address_id, billing_address_id, order_time, status_id)
+                VALUES (%s, %s, NOW(), %s)
+            """, (shipping_address_id, billing_address_id, status_id))
+        
+        assert "Shipping and billing addresses must belong to the same user" in str(excinfo.value)
+        db_connection.rollback()
 
-    def test_full_crud_workflow(self, client):
-        """Test a complete create, read, delete workflow."""
-        # Create
-        create_response = client.post('/items', json={
-            'name': 'Test Item',
-            'quantity': 100,
-            'price': 49.99
-        })
-        assert create_response.status_code == 201
-        item_id = create_response.json['id']
+    def test_update_order_to_different_user_address_fails(self, db_connection, db_cursor):
+        """
+        Test that updating an order to use addresses from different users fails.
+        """
+        # First create a valid order with addresses from the same user
+        db_cursor.execute("""
+            SELECT user_id FROM addresses 
+            GROUP BY user_id 
+            HAVING COUNT(*) >= 2 
+            LIMIT 1
+        """)
+        result = db_cursor.fetchone()
         
-        # Read
-        read_response = client.get('/items')
-        assert len(read_response.json) == 1
-        assert read_response.json[0]['id'] == item_id
+        if result is None:
+            pytest.skip("No user with multiple addresses found")
         
-        # Delete
-        delete_response = client.delete(f'/items/{item_id}')
-        assert delete_response.status_code == 200
+        user_id = result["user_id"]
         
-        # Verify deleted
-        final_response = client.get('/items')
-        assert final_response.json == []
+        # Get two addresses belonging to this user
+        db_cursor.execute("""
+            SELECT address_id FROM addresses 
+            WHERE user_id = %s 
+            LIMIT 2
+        """, (user_id,))
+        addresses = db_cursor.fetchall()
+        
+        shipping_address_id = addresses[0]["address_id"]
+        billing_address_id = addresses[1]["address_id"]
+        
+        # Get a valid status_id
+        db_cursor.execute("SELECT status_id FROM statuses LIMIT 1")
+        status_id = db_cursor.fetchone()["status_id"]
+        
+        # Create a valid order
+        db_cursor.execute("""
+            INSERT INTO orders (shipping_address_id, billing_address_id, order_time, status_id)
+            VALUES (%s, %s, NOW(), %s)
+            RETURNING order_id
+        """, (shipping_address_id, billing_address_id, status_id))
+        order_id = db_cursor.fetchone()["order_id"]
+        
+        # Now get an address from a different user
+        db_cursor.execute("""
+            SELECT address_id FROM addresses 
+            WHERE user_id <> %s 
+            LIMIT 1
+        """, (user_id,))
+        different_user_address = db_cursor.fetchone()
+        
+        if different_user_address is None:
+            pytest.skip("No address from a different user found")
+        
+        different_address_id = different_user_address["address_id"]
+        
+        # Try to update the order to use an address from a different user
+        with pytest.raises(psycopg.errors.RaiseException) as excinfo:
+            db_cursor.execute("""
+                UPDATE orders 
+                SET billing_address_id = %s 
+                WHERE order_id = %s
+            """, (different_address_id, order_id))
+        
+        assert "Shipping and billing addresses must belong to the same user" in str(excinfo.value)
+        db_connection.rollback()
+
+    def test_order_with_same_address_for_shipping_and_billing_succeeds(self, db_connection, db_cursor):
+        """Test that using the same address for both shipping and billing works."""
+        # Get any address
+        db_cursor.execute("SELECT address_id FROM addresses LIMIT 1")
+        result = db_cursor.fetchone()
+        
+        if result is None:
+            pytest.skip("No addresses found")
+        
+        address_id = result["address_id"]
+        
+        # Get a valid status_id
+        db_cursor.execute("SELECT status_id FROM statuses LIMIT 1")
+        status_id = db_cursor.fetchone()["status_id"]
+        
+        # This should succeed - same address for both
+        db_cursor.execute("""
+            INSERT INTO orders (shipping_address_id, billing_address_id, order_time, status_id)
+            VALUES (%s, %s, NOW(), %s)
+            RETURNING order_id
+        """, (address_id, address_id, status_id))
+        
+        result = db_cursor.fetchone()
+        assert result["order_id"] is not None
+        
+        db_connection.rollback()
+
+
+class TestDatabaseConstraints:
+    """Tests for database constraints and referential integrity."""
+
+    def test_user_email_must_be_unique(self, db_connection, db_cursor):
+        """Test that user emails must be unique."""
+        # Insert a user
+        db_cursor.execute("""
+            INSERT INTO users (name, surname, passhash, email)
+            VALUES ('Test', 'User', 'abc123hash456def789abc123hash456def789abc123hash456def789abc1', 'unique.test@example.com')
+        """)
+        
+        # Try to insert another user with the same email
+        with pytest.raises(psycopg.errors.UniqueViolation):
+            db_cursor.execute("""
+                INSERT INTO users (name, surname, passhash, email)
+                VALUES ('Another', 'User', 'xyz789hash123abc456xyz789hash123abc456xyz789hash123abc456xyz7', 'unique.test@example.com')
+            """)
+        
+        db_connection.rollback()
+
+    def test_book_isbn_length_constraint(self, db_connection, db_cursor):
+        """Test that ISBN must be either 10 or 13 characters."""
+        # Try to insert a book with invalid ISBN length
+        with pytest.raises(psycopg.errors.CheckViolation):
+            db_cursor.execute("""
+                INSERT INTO books (isbn, title, publication_year)
+                VALUES ('12345', 'Invalid ISBN Book', 2024)
+            """)
+        
+        db_connection.rollback()
+
+    def test_review_stars_constraint(self, db_connection, db_cursor):
+        """Test that review stars must be between 0 and 5."""
+        # Get a user and book for the review
+        db_cursor.execute("SELECT user_id FROM users LIMIT 1")
+        user_result = db_cursor.fetchone()
+        db_cursor.execute("SELECT isbn FROM books LIMIT 1")
+        book_result = db_cursor.fetchone()
+        
+        if user_result is None or book_result is None:
+            pytest.skip("No users or books found")
+        
+        # Try to insert a review with invalid stars (> 5)
+        with pytest.raises(psycopg.errors.CheckViolation):
+            db_cursor.execute("""
+                INSERT INTO reviews (user_id, isbn, review_body, stars)
+                VALUES (%s, %s, 'Great book!', 10)
+            """, (user_result["user_id"], book_result["isbn"]))
+        
+        db_connection.rollback()

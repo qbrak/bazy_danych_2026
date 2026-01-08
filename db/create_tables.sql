@@ -119,7 +119,7 @@ CREATE TABLE reviews(
     user_id     INTEGER REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE,
     isbn        TEXT NOT NULL REFERENCES books(isbn) ON DELETE CASCADE ON UPDATE CASCADE,
     review_body varchar(2000),
-    stars       decimal(1) NOT NULL
+    stars       INTEGER NOT NULL,
     
     CHECK (0 <= stars AND stars <= 5)
 );
@@ -137,7 +137,6 @@ CREATE TABLE statuses(
 
 CREATE TABLE orders(
     order_id            INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id             INTEGER REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE,
     -- if adress is deleted we want to keep info about the order, so ON DELETE SET NULL
     shipping_address_id INTEGER REFERENCES addresses(address_id) ON DELETE SET NULL ON UPDATE CASCADE,
     billing_address_id  INTEGER REFERENCES addresses(address_id) ON DELETE SET NULL ON UPDATE CASCADE,
@@ -164,3 +163,32 @@ INSERT INTO statuses(status_name) VALUES
 INSERT INTO categories(category_name) VALUES
     ('databases'), ('political_studies'), ('horror'), ('psychology'), ('programming'), ('biology'), ('medicine'), ('literature')
 ;
+------------------------------------------------------------------
+--------------------- TRIGGERS AND FUNCTIONS ---------------------
+------------------------------------------------------------------
+
+-- Define trigger
+CREATE OR REPLACE FUNCTION validate_order_address_ownership()
+RETURNS TRIGGER AS $$
+DECLARE
+    shipping_owner_id INT;
+    billing_owner_id INT;
+BEGIN
+    SELECT user_id INTO shipping_owner_id 
+        FROM addresses 
+        WHERE address_id = NEW.shipping_address_id;
+    SELECT user_id INTO billing_owner_id 
+        FROM addresses 
+        WHERE address_id = NEW.billing_address_id;
+    IF shipping_owner_id <> billing_owner_id THEN
+        RAISE EXCEPTION 'Shipping and billing addresses must belong to the same user';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Attach trigger to Orders table
+CREATE TRIGGER trg_validate_order_address_ownership
+BEFORE INSERT OR UPDATE ON Orders
+FOR EACH ROW
+EXECUTE FUNCTION validate_order_address_ownership();
