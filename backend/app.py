@@ -41,6 +41,7 @@ def get_db_connection() -> psycopg.Connection:
 # ORDERS (Primary Resource)
 # =============================================================================
 
+#### ACTUALLY USED ####
 @app.route('/user_order_summary', methods=['GET'])
 def get_orders():
     """
@@ -60,6 +61,7 @@ def get_orders():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+#### ACTUALLY USED ####
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
     """
