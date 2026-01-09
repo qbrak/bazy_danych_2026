@@ -1,4 +1,5 @@
 import psycopg
+from psycopg.rows import dict_row
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
@@ -42,8 +43,22 @@ def get_db_connection() -> psycopg.Connection:
 
 @app.route('/orders', methods=['GET'])
 def get_orders():
-    """List all orders with optional filters: ?status_id=, ?user_id="""
-    return jsonify(None), 500 #TODO
+    """
+    List all orders with summary info: order_id, user_id, status, total_amount
+    """
+    
+    query = dedent(f"""\
+        SELECT * FROM user_order_summary
+        """
+    )
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(query)
+                items = cursor.fetchall()
+                return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
