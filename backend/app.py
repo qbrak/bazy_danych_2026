@@ -112,8 +112,24 @@ def get_users():
 
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
-    """Get user with addresses"""
-    return jsonify(None), 500 #TODO
+    """
+    Get single user details
+    """
+    
+    query = dedent("""\
+        SELECT * FROM users WHERE user_id = %s
+        """
+    )
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(query, (user_id,))
+                user = cursor.fetchone()
+                if user is None:
+                    return jsonify({'error': 'User not found'}), 404
+                return jsonify(user), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/users', methods=['POST'])
 def create_user():
