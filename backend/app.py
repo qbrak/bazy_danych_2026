@@ -41,7 +41,7 @@ def get_db_connection() -> psycopg.Connection:
 # ORDERS (Primary Resource)
 # =============================================================================
 
-@app.route('/orders', methods=['GET'])
+@app.route('/user_order_summary', methods=['GET'])
 def get_orders():
     """
     List all orders with summary info: order_id, user_id, status, total_amount
@@ -62,8 +62,49 @@ def get_orders():
 
 @app.route('/orders/<int:order_id>', methods=['GET'])
 def get_order(order_id):
-    """Get single order with items and addresses"""
-    return jsonify(None), 500 #TODO
+    """
+    Get single order with items and addresses
+    """
+
+    try:
+        with get_db_connection() as conn:
+            order_details_query = dedent("""
+                SELECT 
+                    o.*,
+                    u.*,
+                    st.*,
+                    row_to_json(sa.*) as shipping_address,
+                    row_to_json(ba.*) as billing_address
+                FROM orders o 
+                JOIN addresses sa ON o.shipping_address_id = sa.address_id
+                JOIN addresses ba ON o.billing_address_id = ba.address_id
+                JOIN users u ON sa.user_id = u.user_id
+                JOIN statuses st ON o.status_id = st.status_id
+                WHERE o.order_id = %s
+            """
+            )
+
+            # Get order details
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(order_details_query, (order_id,))
+                items = cursor.fetchone()
+            
+            # Get order items
+            item_query = dedent("""
+            SELECT * FROM order_items oi
+                JOIN inventory i ON (oi.inventory_id = i.inventory_id)
+                JOIN books b ON (i.isbn = b.isbn)
+                JOIN prices p ON (oi.price_id = p.price_id)
+                WHERE oi.order_id = %s
+            """
+            )
+
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(item_query, (order_id,))
+                items['items'] = cursor.fetchall()
+                return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/orders', methods=['POST'])
 def create_order():
