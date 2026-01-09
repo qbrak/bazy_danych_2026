@@ -6,7 +6,10 @@ INSERT INTO users (name, surname, passhash, email, email_verified, phone) VALUES
 ('Michał', 'Kamiński', '6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b', 'michal.kaminski@outlook.com', TRUE, '+48 505 678 901'),
 ('Magdalena', 'Lewandowska', 'd4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35', 'magda.lewandowska@interia.pl', FALSE, '+48 506 789 012'),
 ('Tomasz', 'Zieliński', '4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a', 'tomasz.zielinski@gmail.com', TRUE, '+48 507 890 123'),
-('Agnieszka', 'Szymańska', 'ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d', 'agnieszka.szymanska@email.pl', TRUE, '+48 508 901 234');
+('Agnieszka', 'Szymańska', 'ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d', 'agnieszka.szymanska@email.pl', TRUE, '+48 508 901 234'),
+('Krzysztof', 'Dąbrowski', '18ac3e7343f016890c510e93f935261169d9e3f565436429830faf0934f4f8e4', 'k.dabrowski@wp.pl', TRUE, '+48 509 012 345'),
+('Joanna', 'Kozłowska', '6ca13d52ca70c883e0f0bb101e425a89e8624de51db2d2392593af6a84118090', 'joanna.kozlowska@gmail.com', FALSE, '+48 510 123 456'),
+('Marcin', 'Jankowski', 'c0535e4be2b79ffd93291305436bf889314e4a3faec05ecffcbb7df31ad9e51a', 'marcin.jankowski@onet.pl', TRUE, NULL);
 
 INSERT INTO addresses (user_id, street, building_nr, apartment_nr, city, postal_code, country, is_primary) VALUES
 -- Adresy we Wrocławiu
@@ -22,4 +25,11 @@ INSERT INTO addresses (user_id, street, building_nr, apartment_nr, city, postal_
 (6, 'ul. Krakowska', 18, 9, 'Kraków', '31-062', 'Polska', TRUE),
 (7, 'ul. Dietla', 77, 14, 'Kraków', '31-070', 'Polska', TRUE),
 (8, 'ul. Starowiślna', 33, 2, 'Kraków', '31-038', 'Polska', TRUE),
-(8, 'ul. Karmelicka', 12, 8, 'Kraków', '31-128', 'Polska', FALSE);
+(8, 'ul. Karmelicka', 12, 8, 'Kraków', '31-128', 'Polska', FALSE),
+
+-- Additional addresses
+(9, 'ul. Piotrkowska', 104, 15, 'Łódź', '90-006', 'Polska', TRUE),
+(9, 'ul. Narutowicza', 45, NULL, 'Łódź', '90-136', 'Polska', FALSE),
+(10, 'ul. Świętojańska', 25, 6, 'Gdańsk', '80-840', 'Polska', TRUE),
+(11, 'ul. Długa', 33, 12, 'Wrocław', '50-004', 'Polska', TRUE),
+(11, 'ul. Szewska', 8, 4, 'Wrocław', '50-122', 'Polska', FALSE);

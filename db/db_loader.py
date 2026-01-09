@@ -82,14 +82,13 @@ def load_schema(conn=None, close_conn=False):
     return conn
 
 
-def load_example_data(conn=None, close_conn=False, include_users=True):
+def load_example_data(conn=None, close_conn=False):
     """
     Load example data from SQL files in example_data directory.
     
     Args:
         conn: Optional existing database connection. If None, creates a new one.
         close_conn: Whether to close the connection after loading (default: False)
-        include_users: Whether to include users.sql (default: True)
     
     Returns:
         psycopg.Connection: The database connection used (or None if closed)
@@ -104,10 +103,10 @@ def load_example_data(conn=None, close_conn=False, include_users=True):
         "books.sql",
         "authorship.sql",
         "book_categories.sql",
+        "inventory.sql",  # Load inventory before orders
+        "users.sql",      # Need users to get addresses right
+        "orders.sql",     # Orders depends on inventory
     ]
-    
-    if include_users:
-        files.append("users.sql")
     
     for filename in files:
         filepath = EXAMPLE_DATA_DIR / filename
@@ -127,7 +126,7 @@ def load_example_data(conn=None, close_conn=False, include_users=True):
     return conn
 
 
-def setup_database(conn=None, close_conn=True, include_users=True):
+def setup_database(conn=None, close_conn=True):
     """
     Full database setup: load schema and example data.
     
@@ -136,7 +135,6 @@ def setup_database(conn=None, close_conn=True, include_users=True):
     Args:
         conn: Optional existing database connection. If None, creates a new one.
         close_conn: Whether to close the connection after setup (default: True)
-        include_users: Whether to include users.sql (default: True)
     
     Returns:
         psycopg.Connection: The database connection used (or None if closed)
@@ -149,7 +147,7 @@ def setup_database(conn=None, close_conn=True, include_users=True):
     print("=" * 50)
     
     load_schema(conn, close_conn=False)
-    load_example_data(conn, close_conn=False, include_users=include_users)
+    load_example_data(conn, close_conn=False)
     
     print("=" * 50)
     print("Database setup complete!")

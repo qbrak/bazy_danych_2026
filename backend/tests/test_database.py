@@ -35,7 +35,7 @@ def db_setup():
     This runs once per test module.
     """
     conn = get_db_connection()
-    setup_database(conn, close_conn=False, include_users=True)
+    setup_database(conn, close_conn=False)
     yield conn
     conn.close()
 

@@ -1,3 +1,12 @@
+-- Delete object if exists in reverse order of dependencies to avoid conflicts
+DROP INDEX IF EXISTS idx_prices_current CASCADE;
+
+
+DROP VIEW IF EXISTS inventory_stock CASCADE;
+DROP VIEW IF EXISTS user_order_summary CASCADE;
+DROP VIEW IF EXISTS order_item_details CASCADE;
+
+
 DROP TABLE IF EXISTS authors CASCADE;
 DROP TABLE IF EXISTS books CASCADE;
 DROP TABLE IF EXISTS authorship CASCADE;
@@ -13,13 +22,9 @@ DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS order_items CASCADE;
 DROP TABLE IF EXISTS prices CASCADE;
 
-DROP INDEX IF EXISTS idx_prices_current CASCADE;
-
-DROP VIEW IF EXISTS inventory_stock CASCADE;
 
 
--- Tables about books:
-
+-- Tables about books;
 
 CREATE TABLE authors(
     author_id TEXT PRIMARY KEY,
@@ -149,6 +154,14 @@ CREATE TABLE orders(
     status_id           INTEGER REFERENCES statuses(status_id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+CREATE VIEW user_order_summary AS (
+    SELECT o.order_id, u.user_id, u.name, u.surname, s.status_name, o.order_time, o.payment_time, o.shipment_time
+    FROM orders o
+    JOIN addresses a ON o.shipping_address_id = a.address_id
+    JOIN users u ON a.user_id = u.user_id
+    JOIN statuses s ON o.status_id = s.status_id
+);
+
 CREATE TABLE prices(
     price_id    INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     isbn        TEXT NOT NULL REFERENCES books(isbn),
@@ -171,6 +184,13 @@ CREATE TABLE order_items(
     quantity     INTEGER NOT NULL
 );
 
+CREATE VIEW order_item_details AS (
+    SELECT oi.id, oi.order_id, b.title, b.isbn, p.unit_price, oi.quantity
+    FROM order_items oi
+    JOIN prices p ON oi.price_id = p.price_id
+    JOIN inventory i ON oi.inventory_id = i.inventory_id
+    JOIN books b ON i.isbn = b.isbn
+);
 
 -- Populate the `statuses` enumeration table:
 INSERT INTO statuses(status_name) VALUES 
