@@ -11,8 +11,12 @@ DROP TABLE IF EXISTS reviews CASCADE;
 DROP TABLE IF EXISTS statuses CASCADE;
 DROP TABLE IF EXISTS orders CASCADE;
 DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS prices CASCADE;
+
+DROP INDEX IF EXISTS idx_prices_current CASCADE;
 
 DROP VIEW IF EXISTS inventory_stock CASCADE;
+
 
 -- Tables about books:
 
@@ -58,12 +62,10 @@ CREATE TABLE book_categories(
 CREATE TABLE inventory(
     inventory_id      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     isbn              TEXT NOT NULL UNIQUE REFERENCES books(isbn) ON DELETE RESTRICT ON UPDATE CASCADE,
-    unit_cost         decimal(7, 2),
     reorder_threshold INTEGER NOT NULL DEFAULT 10,
     quantity_reserved INTEGER NOT NULL DEFAULT 0,
     last_restocked    DATE
     
-    CHECK (unit_cost >= 0),
     CHECK (quantity_reserved >= 0),
     CHECK (reorder_threshold >= 0)
 );
@@ -147,11 +149,25 @@ CREATE TABLE orders(
     status_id           INTEGER REFERENCES statuses(status_id) ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+CREATE TABLE prices(
+    price_id    INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    isbn        TEXT NOT NULL REFERENCES books(isbn),
+    unit_price  DECIMAL(7, 2) NOT NULL,
+    valid_from  TIMESTAMP NOT NULL DEFAULT NOW(),
+    valid_until TIMESTAMP,  -- NULL means current
+    
+    CHECK (unit_price >= 0),
+    CHECK (valid_until IS NULL OR valid_until > valid_from)
+);
+
+-- Add index for efficient "current price" queries
+CREATE INDEX idx_prices_current ON prices(isbn) WHERE valid_until IS NULL;
 
 CREATE TABLE order_items(
     id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     order_id     INTEGER NOT NULL REFERENCES orders(order_id) ON DELETE RESTRICT ON UPDATE CASCADE,
     inventory_id INTEGER NOT NULL REFERENCES inventory(inventory_id) ON DELETE RESTRICT ON UPDATE CASCADE,
+    price_id     INTEGER NOT NULL REFERENCES prices(price_id) ON DELETE RESTRICT ON UPDATE CASCADE,
     quantity     INTEGER NOT NULL
 );
 
