@@ -257,17 +257,24 @@ def get_books():
 
 @app.route('/books/<isbn>', methods=['GET'])
 def get_book(isbn):
-    """Get book title, publication year, price id and stocked quantity
+    """Get book summary
+    
+    Returns:
+    title, publication year, current price id and unit price, inventory id,
+    stocked quantity, and average review rating
     
     This uses LEFT OUTER JOIN, so if the book is not stocked,
     the latter values will be NULL
     """
     
     query = """\
-        SELECT title, publication_year, price_id, quantity FROM books
+        SELECT title, publication_year, price_id, unit_price, inventory_id,
+            quantity, stars FROM books
+        JOIN avg_rating USING (isbn)
         LEFT OUTER JOIN prices USING (isbn)
         LEFT OUTER JOIN inventory USING (isbn)
         WHERE isbn = %s
+        AND valid_until IS NULL
         """
         
     try:
@@ -474,6 +481,29 @@ def get_book_reviews(isbn):
             return jsonify(items), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# NOTE: on a real system this would probably be best moved into a view, so that the query is executed less often
+@app.route('/books/bestsellers', methods=['GET'])
+def get_bestsellers():
+    """Get books that were bought the most times"""
+    
+    query = """\
+        SELECT isbn, title, sum(quantity) as sold_copies FROM books
+        JOIN prices USING (isbn)
+        JOIN order_items USING (price_id)
+        GROUP BY isbn
+        ORDER BY sold_copies DESC
+        """  
+   
+    try:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(port=5000)
