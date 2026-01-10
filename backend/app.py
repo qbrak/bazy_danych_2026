@@ -5,7 +5,6 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-from textwrap import dedent
 
 # Find .env file - look in parent directory (project root)
 def load_env():
@@ -48,10 +47,8 @@ def get_orders():
     List all orders with summary info: order_id, user_id, status, total_amount
     """
     
-    query = dedent(f"""\
-        SELECT * FROM user_order_summary
-        """
-    )
+    query = """SELECT * FROM user_order_summary"""
+    
     try:
         with get_db_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
@@ -70,7 +67,7 @@ def get_order(order_id):
 
     try:
         with get_db_connection() as conn:
-            order_details_query = dedent("""
+            order_details_query = """
                 SELECT 
                     o.*,
                     u.*,
@@ -84,25 +81,26 @@ def get_order(order_id):
                 JOIN statuses st ON o.status_id = st.status_id
                 WHERE o.order_id = %s
             """
-            )
 
+            print(order_details_query)
             # Get order details
             with conn.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(order_details_query, (order_id,))
                 items = cursor.fetchone()
             
             # Get order items
-            item_query = dedent("""
+            item_query = """
             SELECT * FROM order_items oi
                 JOIN prices p ON (oi.price_id = p.price_id)
                 JOIN books b ON (p.isbn = b.isbn)
                 WHERE oi.order_id = %s
             """
-            )
+
 
             with conn.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(item_query, (order_id,))
-                items['items'] = cursor.fetchall()
+                if items is not None:
+                    items['items'] = cursor.fetchall()
                 return jsonify(items), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -150,7 +148,18 @@ def delete_order_item(item_id):
 @app.route('/users', methods=['GET'])
 def get_users():
     """List all users"""
-    return jsonify(None), 500 #TODO
+    query = "SELECT * FROM users"
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(query)
+                user = cursor.fetchall()
+                if user is None:
+                    return jsonify({'error': 'User not found'}), 404
+                return jsonify(user), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/users/<int:user_id>', methods=['GET'])
 def get_user(user_id):
@@ -158,10 +167,7 @@ def get_user(user_id):
     Get single user details
     """
     
-    query = dedent("""\
-        SELECT * FROM users WHERE user_id = %s
-        """
-    )
+    query = "SELECT * FROM users WHERE user_id = %s"
     try:
         with get_db_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
@@ -224,13 +230,12 @@ def get_books():
     category_id = request.args.get('category_id', type=int)
     author_id = request.args.get('author_id', type=str)
     
-    query = dedent("""\
+    query = """\
         SELECT DISTINCT isbn, title, publication_year FROM books
         JOIN book_categories USING (isbn)
         JOIN authorship USING (isbn)
         WHERE 1=1
         """
-    )
     
     if search is not None: 
         query = query + f" AND title LIKE '%{search}%'"
@@ -242,7 +247,7 @@ def get_books():
         query = query + f" AND author_id = '{author_id}'"
     
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
             items = cursor.fetchall()
             return jsonify(items), 200
@@ -258,16 +263,16 @@ def get_book(isbn):
     the latter values will be NULL
     """
     
-    query = dedent(f"""\
+    query = """\
         SELECT title, publication_year, price_id, quantity FROM books
         LEFT OUTER JOIN prices USING (isbn)
         LEFT OUTER JOIN inventory USING (isbn)
-        WHERE isbn = '{isbn}'
+        WHERE isbn = %s
         """
-    )
+        
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
-            cursor.execute(query)
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(query, (isbn, ))
             items = cursor.fetchall()
             return jsonify(items), 200
     except Exception as e:
@@ -277,15 +282,15 @@ def get_book(isbn):
 def get_book_authors(isbn):
     """Get all authors of a book"""
     
-    query = dedent(f"""\
+    query = """\
         SELECT author_id, name, surname FROM authors
         JOIN authorship USING (author_id)
-        WHERE isbn = '{isbn}'
+        WHERE isbn = %s
         """
-    )
+        
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
-            cursor.execute(query)
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(query, (isbn, ))
             items = cursor.fetchall()
             return jsonify(items), 200
     except Exception as e:
@@ -295,15 +300,15 @@ def get_book_authors(isbn):
 def get_book_categories(isbn):
     """Get all categories that the book is in"""
     
-    query = dedent(f"""\
+    query = """\
         SELECT category_id, category_name FROM categories
         JOIN book_categories USING (category_id)
-        WHERE isbn = '{isbn}'
+        WHERE isbn = %s
         """
-    )
+    
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
-            cursor.execute(query)
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(query, (isbn, ))
             items = cursor.fetchall()
             return jsonify(items), 200
     except Exception as e:
@@ -322,14 +327,10 @@ def get_inventory():
     if low_stock is not None:
         return jsonify({'error': "low stock argument is not yet handled"}), 500 #TODO
     
-    query = dedent("""\
-        SELECT * FROM inventory
-        """
-    )
-    
+    query = """SELECT * FROM inventory"""
    
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
             items = cursor.fetchall()
             return jsonify(items), 200
@@ -350,17 +351,49 @@ def get_offers():
     """List all current sell offers. With price_id, unit_price and stocked quantity
     """
     
-    query = dedent("""\
+    query = """\
         SELECT price_id, unit_price, quantity FROM prices
         JOIN books USING (isbn)
         LEFT OUTER JOIN inventory USING (isbn)
-        """
-    )
+        """    
+   
+    try:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(query)
+            items = cursor.fetchall()
+            return jsonify(items), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+        
+@app.route('/price/<isbn>', methods=['GET'])
+def get_price_of(isbn):
+    """Get all prices of a book (including archival), sorted so that current price is first
+    
+    Filter: ?valid_only=true -- show only prices that are still valid
+    """
+    
+    valid_only = request.args.get('valid_only', type=bool, default=False)
+    
+    if valid_only:
+        query = """\
+            SELECT price_id, unit_price, valid_until FROM prices
+            WHERE isbn = %s
+            AND valid_until IS NULL
+            ORDER BY valid_until DESC
+            """
+        
+    else:
+        query = """\
+            SELECT price_id, unit_price, valid_until FROM prices
+            WHERE isbn = %s
+            ORDER BY valid_until DESC
+            """
+        
     
    
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
-            cursor.execute(query)
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(query, (isbn, ))
             items = cursor.fetchall()
             return jsonify(items), 200
     except Exception as e:
@@ -377,7 +410,7 @@ def get_statuses():
     query = "SELECT * FROM statuses"   
    
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
             items = cursor.fetchall()
             return jsonify(items), 200
@@ -395,7 +428,7 @@ def get_authors():
     query = "SELECT * FROM authors"   
    
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
             items = cursor.fetchall()
             return jsonify(items), 200
@@ -418,7 +451,7 @@ def get_categories():
     query = "SELECT * FROM categories"   
    
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
             items = cursor.fetchall()
             return jsonify(items), 200
@@ -432,11 +465,11 @@ def get_categories():
 @app.route('/books/<isbn>/reviews', methods=['GET'])
 def get_book_reviews(isbn):
     """Get reviews for a book"""
-    query = f"SELECT * FROM reviews WHERE isbn = '{isbn}'"   
+    query = "SELECT * FROM reviews WHERE isbn = %s"   
    
     try:
-        with get_db_connection() as conn, conn.cursor() as cursor:
-            cursor.execute(query)
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(query, (isbn, ))
             items = cursor.fetchall()
             return jsonify(items), 200
     except Exception as e:
