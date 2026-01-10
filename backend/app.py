@@ -278,7 +278,7 @@ def get_book_authors(isbn):
     """Get all authors of a book"""
     
     query = dedent(f"""\
-        SELECT author_id, name FROM authors
+        SELECT author_id, name, surname FROM authors
         JOIN authorship USING (author_id)
         WHERE isbn = '{isbn}'
         """
