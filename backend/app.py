@@ -261,7 +261,7 @@ def get_book(isbn):
     query = dedent(f"""\
         SELECT title, publication_year, price_id, quantity FROM books
         LEFT OUTER JOIN prices USING (isbn)
-        LEFT OUTER JOIN inventory_id USING (isbn)
+        LEFT OUTER JOIN inventory USING (isbn)
         WHERE isbn = '{isbn}'
         """
     )
