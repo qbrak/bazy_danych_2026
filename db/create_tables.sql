@@ -4,6 +4,7 @@ DROP INDEX IF EXISTS idx_prices_current CASCADE;
 
 DROP VIEW IF EXISTS user_order_summary CASCADE;
 DROP VIEW IF EXISTS order_item_details CASCADE;
+DROP VIEW IF EXISTS avg_rating CASCADE;
 
 
 DROP TABLE IF EXISTS authors CASCADE;
@@ -94,6 +95,13 @@ CREATE TABLE reviews(
     stars       INTEGER NOT NULL,
     
     CHECK (0 <= stars AND stars <= 5)
+);
+
+CREATE VIEW avg_rating AS (
+    SELECT isbn, AVG(r.stars)::NUMERIC(3, 2) as stars FROM books
+    LEFT OUTER JOIN reviews r USING (isbn)
+    GROUP BY isbn
+    ORDER BY stars DESC NULLS LAST
 );
 
 -- Inventory tables:
