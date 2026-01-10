@@ -94,9 +94,8 @@ def get_order(order_id):
             # Get order items
             item_query = dedent("""
             SELECT * FROM order_items oi
-                JOIN inventory i ON (oi.inventory_id = i.inventory_id)
-                JOIN books b ON (i.isbn = b.isbn)
                 JOIN prices p ON (oi.price_id = p.price_id)
+                JOIN books b ON (p.isbn = b.isbn)
                 WHERE oi.order_id = %s
             """
             )
@@ -135,7 +134,7 @@ def get_order_items(order_id):
 
 @app.route('/orders/<int:order_id>/items', methods=['POST'])
 def add_order_item(order_id):
-    """Add item to order: inventory_id, quantity"""
+    """Add item to order: price_id, quantity"""
     return jsonify(None), 500 #TODO
 
 @app.route('/order-items/<int:item_id>', methods=['DELETE'])
@@ -253,16 +252,16 @@ def get_books():
 
 @app.route('/books/<isbn>', methods=['GET'])
 def get_book(isbn):
-    """Get book title, publication year, inventory id and stocked quantity
+    """Get book title, publication year, price id and stocked quantity
     
     This uses LEFT OUTER JOIN, so if the book is not stocked,
     the latter values will be NULL
     """
     
     query = dedent(f"""\
-        SELECT title, publication_year, inventory_id, quantity FROM books
-        LEFT OUTER JOIN inventory USING (isbn)
-        LEFT OUTER JOIN inventory_stock USING (inventory_id)
+        SELECT title, publication_year, price_id, quantity FROM books
+        LEFT OUTER JOIN prices USING (isbn)
+        LEFT OUTER JOIN inventory_id USING (isbn)
         WHERE isbn = '{isbn}'
         """
     )
@@ -317,10 +316,6 @@ def get_book_categories(isbn):
 @app.route('/inventory', methods=['GET'])
 def get_inventory():
     """List all inventory. Filter: ?low_stock=true
-
-    This contains stock summed from all warehouse locations.
-    To see all locations and how much stock is in each of them access the
-    /warehouse/<int:inventory_id> endpoint
     """
     
     low_stock = request.args.get('low_stock', type=str)
@@ -329,7 +324,6 @@ def get_inventory():
     
     query = dedent("""\
         SELECT * FROM inventory
-        LEFT OUTER JOIN inventory_stock USING (inventory_id)
         """
     )
     
@@ -344,20 +338,22 @@ def get_inventory():
 
 @app.route('/inventory/<int:inventory_id>', methods=['PATCH'])
 def update_inventory(inventory_id):
-    """Update: quantity_reserved, reorder_threshold, unit_cost, last_restocked"""
+    """Update"""
     return jsonify(None), 500 #TODO
 
-
 # =============================================================================
-# WAREHOUSE
+# PRICES
 # =============================================================================
 
-@app.route('/inventory/<int:inventory_id>', methods=['GET'])
-def get_warehouse(inventory_id):
-    """List all warehouse locations where this inventory is kept, including the stocked quantity"""
-    query = dedent(f"""\
-        SELECT * FROM warehouse
-        WHERE inventory_id = {inventory_id}
+@app.route('/offers', methods=['GET'])
+def get_offers():
+    """List all current sell offers. With price_id, unit_price and stocked quantity
+    """
+    
+    query = dedent("""\
+        SELECT price_id, unit_price, quantity FROM prices
+        JOIN books USING (isbn)
+        LEFT OUTER JOIN inventory USING (isbn)
         """
     )
     

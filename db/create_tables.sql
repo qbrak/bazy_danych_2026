@@ -2,7 +2,6 @@
 DROP INDEX IF EXISTS idx_prices_current CASCADE;
 
 
-DROP VIEW IF EXISTS inventory_stock CASCADE;
 DROP VIEW IF EXISTS user_order_summary CASCADE;
 DROP VIEW IF EXISTS order_item_details CASCADE;
 
@@ -13,7 +12,6 @@ DROP TABLE IF EXISTS authorship CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
 DROP TABLE IF EXISTS book_categories CASCADE;
 DROP TABLE IF EXISTS inventory CASCADE;
-DROP TABLE IF EXISTS warehouse CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS addresses CASCADE;
 DROP TABLE IF EXISTS reviews CASCADE;
@@ -60,40 +58,6 @@ CREATE TABLE book_categories(
 );
 
 
-
--- Inventory tables:
-
-
-CREATE TABLE inventory(
-    inventory_id      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    isbn              TEXT NOT NULL UNIQUE REFERENCES books(isbn) ON DELETE RESTRICT ON UPDATE CASCADE,
-    reorder_threshold INTEGER NOT NULL DEFAULT 10,
-    quantity_reserved INTEGER NOT NULL DEFAULT 0,
-    last_restocked    DATE
-    
-    CHECK (quantity_reserved >= 0),
-    CHECK (reorder_threshold >= 0)
-);
-
-
-CREATE TABLE warehouse(
-    shelf_nr     INTEGER CHECK (shelf_nr >=0),
-    shelf_level  INTEGER CHECK (shelf_level >=0),
-    shelf_offset INTEGER CHECK (shelf_offset >=0),
-    inventory_id INTEGER REFERENCES inventory(inventory_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    quantity     INTEGER NOT NULL DEFAULT 0,
-    
-    PRIMARY KEY (shelf_nr, shelf_level, shelf_offset),
-    CHECK (quantity >= 0)
-);
-
-CREATE VIEW inventory_stock AS (
-    SELECT inventory_id, sum(quantity) AS quantity
-    FROM warehouse
-    GROUP BY inventory_id
-);
-
-
 -- Tables about users:
 
 
@@ -132,7 +96,22 @@ CREATE TABLE reviews(
     CHECK (0 <= stars AND stars <= 5)
 );
 
+-- Inventory tables:
 
+
+
+CREATE TABLE inventory(
+    inventory_id      INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    isbn              TEXT NOT NULL UNIQUE REFERENCES books(isbn) ON DELETE RESTRICT ON UPDATE CASCADE,
+    reorder_threshold INTEGER NOT NULL DEFAULT 10,
+    quantity_reserved INTEGER NOT NULL DEFAULT 0,
+    last_restocked    DATE,
+    quantity          INTEGER NOT NULL DEFAULT 0
+    
+    CHECK (quantity >= 0)
+    CHECK (quantity_reserved >= 0),
+    CHECK (reorder_threshold >= 0)
+);
 
 -- Tables about orders:
 
@@ -164,7 +143,7 @@ CREATE VIEW user_order_summary AS (
 
 CREATE TABLE prices(
     price_id    INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    isbn        TEXT NOT NULL REFERENCES books(isbn),
+    isbn        TEXT NOT NULL REFERENCES books(isbn) ON DELETE RESTRICT ON UPDATE CASCADE,
     unit_price  DECIMAL(7, 2) NOT NULL,
     valid_from  TIMESTAMP NOT NULL DEFAULT NOW(),
     valid_until TIMESTAMP,  -- NULL means current
@@ -174,12 +153,11 @@ CREATE TABLE prices(
 );
 
 -- Add index for efficient "current price" queries
-CREATE INDEX idx_prices_current ON prices(isbn) WHERE valid_until IS NULL;
+CREATE INDEX idx_prices_current ON prices(price_id ) WHERE valid_until IS NULL;
 
 CREATE TABLE order_items(
     id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     order_id     INTEGER NOT NULL REFERENCES orders(order_id) ON DELETE RESTRICT ON UPDATE CASCADE,
-    inventory_id INTEGER NOT NULL REFERENCES inventory(inventory_id) ON DELETE RESTRICT ON UPDATE CASCADE,
     price_id     INTEGER NOT NULL REFERENCES prices(price_id) ON DELETE RESTRICT ON UPDATE CASCADE,
     quantity     INTEGER NOT NULL
 );
@@ -188,8 +166,7 @@ CREATE VIEW order_item_details AS (
     SELECT oi.id, oi.order_id, b.title, b.isbn, p.unit_price, oi.quantity
     FROM order_items oi
     JOIN prices p ON oi.price_id = p.price_id
-    JOIN inventory i ON oi.inventory_id = i.inventory_id
-    JOIN books b ON i.isbn = b.isbn
+    JOIN books b ON p.isbn = b.isbn
 );
 
 -- Populate the `statuses` enumeration table:

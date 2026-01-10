@@ -60,71 +60,51 @@ INSERT INTO orders (shipping_address_id, billing_address_id, order_time, payment
 -- Note: We need to get the correct inventory_id and price_id for each ISBN
 
 -- Order 1 Items (2 books)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(1, (SELECT inventory_id FROM inventory WHERE isbn = '9780534391140'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780534391140' AND valid_until IS NULL), 2),
-(1, (SELECT inventory_id FROM inventory WHERE isbn = '9780730013426'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780730013426' AND valid_until IS NULL), 1);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(1, (SELECT price_id FROM prices WHERE isbn = '9780534391140' AND valid_until IS NULL), 2),
+(1, (SELECT price_id FROM prices WHERE isbn = '9780730013426' AND valid_until IS NULL), 1);
 
 -- Order 2 Items (3 books)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(2, (SELECT inventory_id FROM inventory WHERE isbn = '9780435462635'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780435462635' AND valid_until IS NULL), 1),
-(2, (SELECT inventory_id FROM inventory WHERE isbn = '9780130354624'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780130354624' AND valid_until IS NULL), 2),
-(2, (SELECT inventory_id FROM inventory WHERE isbn = '9780080285610'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780080285610' AND valid_until IS NULL), 1);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(2, (SELECT price_id FROM prices WHERE isbn = '9780435462635' AND valid_until IS NULL), 1),
+(2, (SELECT price_id FROM prices WHERE isbn = '9780130354624' AND valid_until IS NULL), 2),
+(2, (SELECT price_id FROM prices WHERE isbn = '9780080285610' AND valid_until IS NULL), 1);
 
 -- Order 3 Items (1 book, multiple copies)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(3, (SELECT inventory_id FROM inventory WHERE isbn = '9780125449625'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780125449625' AND valid_until IS NULL), 5);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(3, (SELECT price_id FROM prices WHERE isbn = '9780125449625' AND valid_until IS NULL), 5);
 
 -- Order 4 Items (2 different books)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(4, (SELECT inventory_id FROM inventory WHERE isbn = '9780273031734'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780273031734' AND valid_until IS NULL), 1),
-(4, (SELECT inventory_id FROM inventory WHERE isbn = '9780130446398'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780130446398' AND valid_until IS NULL), 3);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(4, (SELECT price_id FROM prices WHERE isbn = '9780273031734' AND valid_until IS NULL), 1),
+(4, (SELECT price_id FROM prices WHERE isbn = '9780130446398' AND valid_until IS NULL), 3);
 
 -- Order 5 Items (single book)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(5, (SELECT inventory_id FROM inventory WHERE isbn = '9780077077037'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780077077037' AND valid_until IS NULL), 1);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(5, (SELECT price_id FROM prices WHERE isbn = '9780077077037' AND valid_until IS NULL), 1);
 
 -- Order 6 Items (cancelled order - used historical price)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(6, (SELECT inventory_id FROM inventory WHERE isbn = '9780534391140'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780534391140' AND valid_until IS NOT NULL LIMIT 1), 1);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(6, (SELECT price_id FROM prices WHERE isbn = '9780534391140' AND valid_until IS NOT NULL LIMIT 1), 1);
 
 -- Order 7 Items (large order with multiple books)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(7, (SELECT inventory_id FROM inventory WHERE isbn = '9780534391140'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780534391140' AND valid_until IS NULL), 3),
-(7, (SELECT inventory_id FROM inventory WHERE isbn = '9780730013426'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780730013426' AND valid_until IS NULL), 2),
-(7, (SELECT inventory_id FROM inventory WHERE isbn = '9780435462635'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780435462635' AND valid_until IS NULL), 1),
-(7, (SELECT inventory_id FROM inventory WHERE isbn = '9780201612554'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780201612554' AND valid_until IS NULL), 2);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(7, (SELECT price_id FROM prices WHERE isbn = '9780534391140' AND valid_until IS NULL), 3),
+(7, (SELECT price_id FROM prices WHERE isbn = '9780730013426' AND valid_until IS NULL), 2),
+(7, (SELECT price_id FROM prices WHERE isbn = '9780435462635' AND valid_until IS NULL), 1),
+(7, (SELECT price_id FROM prices WHERE isbn = '9780201612554' AND valid_until IS NULL), 2);
 
 -- Order 8 Items (2 books)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(8, (SELECT inventory_id FROM inventory WHERE isbn = '9780080285610'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780080285610' AND valid_until IS NULL), 2),
-(8, (SELECT inventory_id FROM inventory WHERE isbn = '9780125449625'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780125449625' AND valid_until IS NULL), 1);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(8, (SELECT price_id FROM prices WHERE isbn = '9780080285610' AND valid_until IS NULL), 2),
+(8, (SELECT price_id FROM prices WHERE isbn = '9780125449625' AND valid_until IS NULL), 1);
 
 -- Order 9 Items (3 different books)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(9, (SELECT inventory_id FROM inventory WHERE isbn = '9780273031734'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780273031734' AND valid_until IS NULL), 1),
-(9, (SELECT inventory_id FROM inventory WHERE isbn = '9780130446398'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780130446398' AND valid_until IS NULL), 1),
-(9, (SELECT inventory_id FROM inventory WHERE isbn = '9780077077037'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780077077037' AND valid_until IS NULL), 2);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(9, (SELECT price_id FROM prices WHERE isbn = '9780273031734' AND valid_until IS NULL), 1),
+(9, (SELECT price_id FROM prices WHERE isbn = '9780130446398' AND valid_until IS NULL), 1),
+(9, (SELECT price_id FROM prices WHERE isbn = '9780077077037' AND valid_until IS NULL), 2);
 
 -- Order 10 Items (single expensive book)
-INSERT INTO order_items (order_id, inventory_id, price_id, quantity) VALUES
-(10, (SELECT inventory_id FROM inventory WHERE isbn = '9780201612554'), 
-    (SELECT price_id FROM prices WHERE isbn = '9780201612554' AND valid_until IS NULL), 1);
+INSERT INTO order_items (order_id, price_id, quantity) VALUES
+(10, (SELECT price_id FROM prices WHERE isbn = '9780201612554' AND valid_until IS NULL), 1);
