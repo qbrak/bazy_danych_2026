@@ -9,9 +9,19 @@
 <body>
     <div class="container">
         <header>
-            <h1>Orders</h1>
+            <div class="header-left">
+                <button id="menu-toggle" class="menu-toggle">☰</button>
+                <h1>Orders</h1>
+            </div>
             <button id="theme-toggle">Toggle Theme</button>
         </header>
+
+        <nav id="nav-menu" class="nav-menu">
+            <a href="#" class="nav-item active" data-view="orders">Orders</a>
+            <a href="#" class="nav-item disabled" data-view="users">Users</a>
+            <a href="#" class="nav-item disabled" data-view="books">Books</a>
+            <a href="#" class="nav-item disabled" data-view="new-order">New Order</a>
+        </nav>
 
         <section id="inventory-list-section">
             <h2>Order List</h2>

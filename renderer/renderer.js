@@ -1,6 +1,8 @@
 const API_URL = 'http://127.0.0.1:5000';
 
 const themeToggle = document.getElementById('theme-toggle');
+const menuToggle = document.getElementById('menu-toggle');
+const navMenu = document.getElementById('nav-menu');
 const inventoryBody = document.getElementById('inventory-body');
 
 // Create user card element
@@ -18,6 +20,39 @@ themeToggle.addEventListener('click', () => {
     const currentTheme = document.body.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     document.body.setAttribute('data-theme', newTheme);
+});
+
+// Menu toggle handling
+menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    navMenu.classList.toggle('open');
+});
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+    if (!navMenu.contains(e.target) && !menuToggle.contains(e.target)) {
+        navMenu.classList.remove('open');
+    }
+});
+
+// Navigation handling
+document.querySelectorAll('.nav-item:not(.disabled)').forEach(item => {
+    item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const view = e.target.dataset.view;
+        
+        // Update active state
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        // Close menu
+        navMenu.classList.remove('open');
+        
+        // Handle view switching (currently only orders works)
+        if (view === 'orders') {
+            fetchOrders();
+        }
+    });
 });
 
 // Show user card on hover
@@ -51,6 +86,9 @@ async function showUserCard(userId, event) {
 function hideUserCard() {
     userCard.style.display = 'none';
 }
+
+// Hide user card when clicking anywhere outside
+document.addEventListener('click', hideUserCard);
 
 // Fetch and display orders
 async function fetchOrders() {
@@ -132,8 +170,8 @@ function renderOrderDetail(order) {
                         <tr>
                             <td>${item.title || 'N/A'}</td>
                             <td>${item.quantity}</td>
-                            <td>$${parseFloat(item.unit_price || 0).toFixed(2)}</td>
-                            <td>$${parseFloat((item.quantity * item.unit_price) || 0).toFixed(2)}</td>
+                            <td>${parseFloat(item.unit_price || 0).toFixed(2)} zł</td>
+                            <td>${parseFloat((item.quantity * item.unit_price) || 0).toFixed(2)} zł</td>
                         </tr>
                     `).join('')}
                 </tbody>
@@ -141,18 +179,25 @@ function renderOrderDetail(order) {
         `;
     }
     
+    // Check if billing address is same as shipping
+    const sameAddress = order.shipping_address && order.billing_address && 
+                        order.shipping_address.address_id === order.billing_address.address_id;
+    
+    // Format address helper
+    const formatAddress = (addr) => {
+        if (!addr) return 'N/A';
+        return `
+            ${addr.street} 
+            ${addr.building_nr ? addr.building_nr : ''}${addr.apartment_nr ? '/' + addr.apartment_nr : ''}<br>
+            ${addr.postal_code} ${addr.city}<br>
+            ${addr.country}
+        `;
+    };
+    
     detailContent.innerHTML = `
         <div class="detail-section">
-            <h3>Order #${order.order_id}</h3>
+            <h3>Order #${order.order_id} • ${order.name} ${order.surname} • ${order.status_name}</h3>
             <div class="detail-grid">
-                <div class="detail-item">
-                    <strong>Customer:</strong> 
-                    <span>${order.name} ${order.surname}</span>
-                </div>
-                <div class="detail-item">
-                    <strong>Status:</strong> 
-                    <span>${order.status_name}</span>
-                </div>
                 <div class="detail-item">
                     <strong>Order Time:</strong> 
                     <span>${new Date(order.order_time).toLocaleString()}</span>
@@ -167,6 +212,35 @@ function renderOrderDetail(order) {
                 </div>
             </div>
         </div>
+        
+        <div class="detail-section">
+            <h3>Information</h3>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <strong>Phone:</strong> 
+                    <span>${order.phone || 'N/A'}</span>
+                </div>
+                <div class="detail-item">
+                    <strong>Email:</strong> 
+                    <span>${order.email || 'N/A'}</span>
+                </div>
+            </div>
+            <div class="address-grid">
+                <div class="address-box">
+                    <h4>Shipping Address</h4>
+                    <div class="address-content">
+                        ${formatAddress(order.shipping_address)}
+                    </div>
+                </div>
+                <div class="address-box">
+                    <h4>Billing Address</h4>
+                    <div class="address-content">
+                        ${sameAddress ? '<em>SAME AS SHIPPING</em>' : formatAddress(order.billing_address)}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         ${itemsHTML}
     `;
 }
