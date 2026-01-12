@@ -13,14 +13,14 @@
                 <button id="menu-toggle" class="menu-toggle">☰</button>
                 <h1>Orders</h1>
             </div>
-            <button id="theme-toggle">Toggle Theme</button>
+            <button id="new-order-btn" class="primary-btn new-order-btn">New Order</button>
         </header>
 
         <nav id="nav-menu" class="nav-menu">
             <a href="#" class="nav-item active" data-view="orders">Orders</a>
             <a href="#" class="nav-item disabled" data-view="users">Users</a>
             <a href="#" class="nav-item disabled" data-view="books">Books</a>
-            <a href="#" class="nav-item disabled" data-view="new-order">New Order</a>
+            <a href="#" class="nav-item" id="theme-menu-item">Dark Mode</a>
         </nav>
 
         <section id="inventory-list-section">
@@ -52,6 +52,70 @@
             <div id="detail-content" class="detail-content">
                 <p>Select an order to view details</p>
             </div>
+        </section>
+
+        <section id="new-order-section" class="hidden">
+            <h2>Create New Order</h2>
+            <form id="new-order-form" class="order-form">
+                <div class="form-section">
+                    <h3>Customer Information</h3>
+                    <div class="form-group">
+                        <label for="customer-select">Customer:</label>
+                        <select id="customer-select" required>
+                            <option value="">Select a customer...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Addresses</h3>
+                    <div class="form-group">
+                        <label for="shipping-address-select">Shipping Address:</label>
+                        <select id="shipping-address-select" required>
+                            <option value="">Select shipping address...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="billing-address-select">Billing Address:</label>
+                        <select id="billing-address-select" required>
+                            <option value="">Select billing address...</option>
+                        </select>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="same-as-shipping"> Same as shipping
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Order Items</h3>
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Book</th>
+                                <th style="width: 100px;">Quantity</th>
+                                <th style="width: 100px;">Unit Price</th>
+                                <th style="width: 100px;">Total</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="order-items-container">
+                            <!-- Order items will be added here -->
+                        </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td colspan="3" style="text-align: right;"><strong>Order Total:</strong></td>
+                                <td><strong id="order-total">0.00 zł</strong></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-btn">Create Order</button>
+                    <button type="button" id="cancel-order-btn" class="secondary-btn">Cancel</button>
+                </div>
+            </form>
         </section>
     </div>
     <script src="renderer.js"></script>

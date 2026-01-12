@@ -32,11 +32,13 @@ body {
 }
 
 .container {
-    max-width: 800px;
+    max-width: 1600px;
+    width: 95%;
     margin: 0 auto;
     height: 100%;
     display: flex;
     flex-direction: column;
+    padding: 0 20px;
 }
 
 header {
@@ -52,6 +54,12 @@ header {
     display: flex;
     align-items: baseline;
     gap: 15px;
+}
+
+.new-order-btn {
+    font-size: 1.1em;
+    padding: 12px 24px;
+    font-weight: 600;
 }
 
 .menu-toggle {
@@ -95,11 +103,18 @@ header {
 }
 
 .nav-item {
-    display: block;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 12px 20px;
     color: var(--text-color);
     text-decoration: none;
     transition: background-color 0.2s;
+}
+
+.theme-icon-right {
+    margin-left: auto;
+    opacity: 0.7;
 }
 
 .nav-item:hover:not(.disabled) {
@@ -149,6 +164,13 @@ table {
     display: flex;
     flex-direction: column;
     min-height: 0;
+}
+
+#new-order-section {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 20px 0;
 }
 
 .table-container {
@@ -360,4 +382,188 @@ tbody tr:hover {
 
 #user-card strong {
     color: var(--button-bg);
+}
+
+/* General utilities */
+.hidden {
+    display: none !important;
+}
+
+/* New Order Form Styles */
+.order-form {
+    max-width: 800px;
+}
+
+.form-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.form-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: var(--text-color);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--button-bg);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+}
+
+.items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    background-color: var(--bg-color);
+}
+
+.items-table th {
+    text-align: left;
+    padding: 10px;
+    background-color: var(--header-bg);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 600;
+}
+
+.items-table th:nth-child(3),
+.items-table th:nth-child(4) {
+    text-align: right;
+}
+
+.items-table td {
+    padding: 8px;
+    background-color: var(--bg-color);
+}
+
+.order-item-row {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.order-item-row:hover td {
+    background-color: var(--header-bg);
+}
+
+.items-table select,
+.items-table input {
+    width: 100%;
+    padding: 8px;
+    margin: 0;
+}
+
+.unit-price,
+.row-total {
+    text-align: right;
+    font-weight: 500;
+}
+
+.total-row td {
+    padding: 12px 8px;
+    background-color: var(--header-bg);
+    border-top: 2px solid var(--border-color);
+    font-size: 1.1em;
+}
+
+.total-row #order-total {
+    color: var(--button-bg);
+}
+
+.delete-cell {
+    text-align: center;
+}
+
+.delete-row-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 32px;
+    height: 32px;
+    font-size: 1.3em;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+}
+
+.delete-row-btn:hover {
+    background-color: #c82333;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.flex-1 {
+    flex: 1;
+}
+
+.flex-2 {
+    flex: 2;
+}
+
+.secondary-btn {
+    background-color: var(--header-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.secondary-btn:hover {
+    background-color: var(--border-color);
+}
+
+.primary-btn {
+    background-color: var(--button-bg);
+    color: var(--button-text);
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.form-actions button {
+    padding: 12px 24px;
+    font-size: 1em;
 }
