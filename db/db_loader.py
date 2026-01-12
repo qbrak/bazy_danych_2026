@@ -103,7 +103,8 @@ def load_example_data(conn=None, close_conn=False):
         "books.sql",
         "authorship.sql",
         "book_categories.sql",
-        "inventory.sql",  # Load inventory before orders
+        "inventory_generated.sql",  # Generated inventory
+        "prices_generated.sql",  # Generated prices
         "users.sql",  # Need users to get addresses right
         "orders.sql",  # Orders depends on inventory
         "reviews.sql",
