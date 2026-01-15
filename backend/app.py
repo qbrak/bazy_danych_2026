@@ -244,6 +244,7 @@ def get_books():
             b.title,
             b.publication_year,
             p.unit_price,
+            COALESCE(i.quantity - i.quantity_reserved, 0) AS available_quantity,
             
             COALESCE(
                 json_agg(
@@ -260,8 +261,9 @@ def get_books():
         LEFT JOIN authorship au ON b.isbn = au.isbn
         LEFT JOIN authors a ON au.author_id = a.author_id
         LEFT JOIN prices p ON b.isbn = p.isbn AND p.valid_until IS NULL
+        LEFT JOIN inventory i ON b.isbn = i.isbn
 
-        GROUP BY b.isbn, b.title, b.publication_year, p.unit_price
+        GROUP BY b.isbn, b.title, b.publication_year, p.unit_price, i.quantity, i.quantity_reserved
         ORDER BY b.title
         """
 

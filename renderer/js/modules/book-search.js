@@ -30,7 +30,8 @@ async function fetchBooksForSearch(apiUrl) {
                 authors: book.authors,
                 authorString: authorString,
                 authorDisplay: authorDisplay || 'Unknown Author',
-                price: parseFloat(book.unit_price || 0)
+                price: parseFloat(book.unit_price || 0),
+                available_quantity: parseInt(book.available_quantity || 0)
             };
         });
         

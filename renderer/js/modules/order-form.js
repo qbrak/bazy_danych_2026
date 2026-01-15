@@ -99,14 +99,21 @@ function addOrderItemRow(autoFocus = false) {
         unitPriceCell.textContent = `${book.price.toFixed(2)} zł`;
         row.dataset.price = book.price;
         
+        // Set max quantity based on available stock
+        quantityInput.max = book.available_quantity || 999;
+        if (book.available_quantity && quantityInput.value > book.available_quantity) {
+            quantityInput.value = book.available_quantity;
+        }
+        
         // Replace the search input with a formatted display
         const searchContainer = row.querySelector('.search-container');
         const yearText = book.publication_year ? ` (${book.publication_year})` : '';
         const authorText = book.authorDisplay ? `<div style="font-size: 0.85em; color: var(--text-color); opacity: 0.7; margin-top: 2px;">— ${book.authorDisplay}</div>` : '';
+        const stockText = book.available_quantity ? ` <span style="font-size: 0.85em; opacity: 0.6;">(${book.available_quantity} in stock)</span>` : '';
         
         searchContainer.innerHTML = `
             <div class="book-display" style="padding: 8px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 4px;">
-                <div style="font-weight: 500;">${book.title}${yearText}</div>
+                <div style="font-weight: 500;">${book.title}${yearText}${stockText}</div>
                 ${authorText}
             </div>
             <input type="hidden" class="selected-book-isbn" value="${book.isbn}" />
