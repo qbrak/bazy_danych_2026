@@ -118,7 +118,8 @@ CREATE TABLE inventory(
     
     CHECK (quantity >= 0)
     CHECK (quantity_reserved >= 0),
-    CHECK (reorder_threshold >= 0)
+    CHECK (reorder_threshold >= 0),
+    CHECK (quantity_reserved <= quantity)
 );
 
 -- Tables about orders:

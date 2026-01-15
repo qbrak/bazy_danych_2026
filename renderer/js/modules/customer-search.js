@@ -233,7 +233,7 @@ async function loadCustomerAddresses(userId) {
         primary_addr = null;
 
         addresses.forEach(addr => {
-            const optionText = `${addr.street} ${addr.building_nr || ''}${addr.apartment_nr ? '/' + addr.apartment_nr : ''}, ${addr.city}`;
+            const optionText = `${addr.street} ${addr.building_nr || ''}${addr.apartment_nr ? '/' + addr.apartment_nr : ''}, ${addr.postal_code} ${addr.city}, ${addr.country}`;
             
             const shippingOption = document.createElement('option');
             shippingOption.value = addr.address_id;
