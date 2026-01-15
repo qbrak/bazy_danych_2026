@@ -128,7 +128,17 @@
             </form>
         </section>
     </div>
+    <!-- External Dependencies -->
     <script src="../node_modules/fuse.js/dist/fuse.js"></script>
-    <script src="renderer.js"></script>
+    
+    <!-- Application Modules (order matters!) -->
+    <script src="js/modules/snow-effect.js"></script>
+    <script src="js/modules/theme-handler.js"></script>
+    <script src="js/modules/customer-search.js"></script>
+    <script src="js/modules/order-display.js"></script>
+    <script src="js/modules/order-form.js"></script>
+    
+    <!-- Main Application -->
+    <script src="js/main.js"></script>
 </body>
 </html>
