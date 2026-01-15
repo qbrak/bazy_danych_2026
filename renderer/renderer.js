@@ -1,5 +1,7 @@
 const API_URL = 'http://127.0.0.1:5000';
 
+// Fuse.js is loaded via script tag in HTML
+
 // ============= SNOW EFFECT =============
 class SnowEffect {
   constructor(canvasElement) {
@@ -411,6 +413,8 @@ function closeDetailPanel() {
 let itemCounter = 0;
 let availableBooks = [];
 let customers = [];
+let customerSearcher = null;
+let highlightedCustomerIndex = -1;
 
 async function initNewOrderForm() {
     // Reset form
@@ -423,6 +427,9 @@ async function initNewOrderForm() {
     
     // Add initial empty row
     addOrderItemRow();
+    
+    // Focus on customer search input
+    document.getElementById('customer-search-input').focus();
 }
 
 async function fetchCustomers() {
@@ -431,14 +438,22 @@ async function fetchCustomers() {
         if (!response.ok) throw new Error('Failed to fetch customers');
         customers = await response.json();
         
-        const customerSelect = document.getElementById('customer-select');
-        customerSelect.innerHTML = '<option value="">Select a customer...</option>';
-        customers.forEach(customer => {
-            const option = document.createElement('option');
-            option.value = customer.user_id;
-            option.textContent = `${customer.name} ${customer.surname} (${customer.email})`;
-            customerSelect.appendChild(option);
+        // Initialize Fuse.js for fuzzy search
+        customerSearcher = new Fuse(customers, {
+            keys: [
+                { name: 'name', weight: 0.4 },
+                { name: 'surname', weight: 0.4 },
+                { name: 'email', weight: 0.2 }
+            ],
+            threshold: 0.4,           // 0 = exact match, 1 = match anything
+            distance: 100,            // How far to search for pattern
+            includeScore: true,
+            includeMatches: true,     // For highlighting
+            minMatchCharLength: 2
         });
+        
+        // Initialize search input listener
+        initCustomerSearch();
     } catch (error) {
         console.error('Error fetching customers:', error);
     }
@@ -464,9 +479,175 @@ async function fetchBooks() {
     }
 }
 
+// Initialize customer search functionality
+function initCustomerSearch() {
+    const searchInput = document.getElementById('customer-search-input');
+    const resultsDropdown = document.getElementById('customer-search-results');
+    
+    if (!searchInput) return;
+    
+    // Search on input
+    searchInput.addEventListener('input', (e) => {
+        searchCustomers(e.target.value);
+    });
+    
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', (e) => {
+        const results = resultsDropdown.querySelectorAll('.search-result');
+        
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                highlightedCustomerIndex = Math.min(highlightedCustomerIndex + 1, results.length - 1);
+                updateCustomerHighlight(results);
+                break;
+                
+            case 'ArrowUp':
+                e.preventDefault();
+                highlightedCustomerIndex = Math.max(highlightedCustomerIndex - 1, 0);
+                updateCustomerHighlight(results);
+                break;
+                
+            case 'Enter':
+                e.preventDefault();
+                if (highlightedCustomerIndex >= 0 && results[highlightedCustomerIndex]) {
+                    selectCustomer(parseInt(results[highlightedCustomerIndex].dataset.userId));
+                }
+                break;
+                
+            case 'Escape':
+                hideCustomerResults();
+                break;
+        }
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !resultsDropdown.contains(e.target)) {
+            hideCustomerResults();
+        }
+    });
+}
+
+function searchCustomers(query) {
+    const resultsDropdown = document.getElementById('customer-search-results');
+    
+    if (!query || query.length < 2) {
+        hideCustomerResults();
+        return;
+    }
+    
+    const results = customerSearcher.search(query, { limit: 10 });
+    displayCustomerResults(results);
+}
+
+function displayCustomerResults(results) {
+    const resultsDropdown = document.getElementById('customer-search-results');
+    highlightedCustomerIndex = -1;
+    
+    if (results.length === 0) {
+        resultsDropdown.innerHTML = '<div class="search-result" style="cursor: default;">No customers found</div>';
+    } else {
+        resultsDropdown.innerHTML = results.map(({ item, matches }) => {
+            const nameText = `${item.name} ${item.surname}`;
+            const highlightedName = highlightMatches(nameText, matches, ['name', 'surname']);
+            const highlightedEmail = highlightMatches(item.email, matches, ['email']);
+            const phone = item.phone || 'No phone';
+            
+            return `
+                <div class="search-result" data-user-id="${item.user_id}">
+                    <div class="search-result-primary">${highlightedName}</div>
+                    <div class="search-result-secondary">${highlightedEmail} • ${phone}</div>
+                </div>
+            `;
+        }).join('');
+        
+        // Add click listeners to results
+        resultsDropdown.querySelectorAll('.search-result').forEach(result => {
+            if (result.dataset.userId) {
+                result.addEventListener('click', () => {
+                    selectCustomer(parseInt(result.dataset.userId));
+                });
+            }
+        });
+        
+        // Auto-highlight first result
+        highlightedCustomerIndex = 0;
+        const allResults = resultsDropdown.querySelectorAll('.search-result');
+        updateCustomerHighlight(allResults);
+    }
+    
+    resultsDropdown.classList.add('visible');
+}
+
+function highlightMatches(text, matches, keys) {
+    if (!matches || !text) return text;
+    
+    // Find matches for specified keys
+    const relevantMatches = matches.filter(m => keys.includes(m.key));
+    if (relevantMatches.length === 0) return text;
+    
+    // Collect all character indices to highlight
+    let highlightIndices = new Set();
+    relevantMatches.forEach(match => {
+        match.indices.forEach(([start, end]) => {
+            for (let i = start; i <= end; i++) {
+                highlightIndices.add(i);
+            }
+        });
+    });
+    
+    // Build highlighted string
+    let result = '';
+    let inMark = false;
+    for (let i = 0; i < text.length; i++) {
+        const shouldHighlight = highlightIndices.has(i);
+        
+        if (shouldHighlight && !inMark) {
+            result += '<mark>';
+            inMark = true;
+        } else if (!shouldHighlight && inMark) {
+            result += '</mark>';
+            inMark = false;
+        }
+        
+        result += text[i];
+    }
+    
+    if (inMark) result += '</mark>';
+    return result;
+}
+
+function updateCustomerHighlight(results) {
+    results.forEach((r, i) => {
+        r.classList.toggle('active', i === highlightedCustomerIndex);
+        if (i === highlightedCustomerIndex) {
+            r.scrollIntoView({ block: 'nearest' });
+        }
+    });
+}
+
+function selectCustomer(userId) {
+    const customer = customers.find(c => c.user_id === userId);
+    if (!customer) return;
+    
+    // Update UI
+    document.getElementById('customer-search-input').value = `${customer.name} ${customer.surname} (${customer.email}, ${customer.phone || 'No phone'})`;
+    document.getElementById('selected-customer-id').value = userId;
+    hideCustomerResults();
+    
+    // Load addresses for selected customer
+    loadCustomerAddresses(userId);
+}
+
+function hideCustomerResults() {
+    const resultsDropdown = document.getElementById('customer-search-results');
+    resultsDropdown.classList.remove('visible');
+    highlightedCustomerIndex = -1;
+}
+
 // Load customer addresses when customer is selected
-document.getElementById('customer-select').addEventListener('change', async (e) => {
-    const userId = e.target.value;
+async function loadCustomerAddresses(userId) {
     if (!userId) {
         document.getElementById('shipping-address-select').innerHTML = '<option value="">Select shipping address...</option>';
         document.getElementById('billing-address-select').innerHTML = '<option value="">Select billing address...</option>';
@@ -484,8 +665,10 @@ document.getElementById('customer-select').addEventListener('change', async (e) 
         shippingSelect.innerHTML = '<option value="">Select shipping address...</option>';
         billingSelect.innerHTML = '<option value="">Select billing address...</option>';
         
+        primary_addr = null;
+
         addresses.forEach(addr => {
-            const optionText = `${addr.street} ${addr.building_nr || ''}${addr.apartment_nr ? '/' + addr.apartment_nr : ''}, ${addr.city}`;
+            const optionText = `${addr.street} ${addr.building_nr || ''}${addr.apartment_nr ? '/' + addr.apartment_nr : ''}, ${addr.postal_code} ${addr.city}, ${addr.country}`;
             
             const shippingOption = document.createElement('option');
             shippingOption.value = addr.address_id;
@@ -496,22 +679,49 @@ document.getElementById('customer-select').addEventListener('change', async (e) 
             billingOption.value = addr.address_id;
             billingOption.textContent = optionText;
             billingSelect.appendChild(billingOption);
+
+            if (addr.is_primary) {
+                primary_addr = addr.address_id;
+            }
         });
+
+        // Select primary address by default
+        if (primary_addr) {
+            shippingSelect.value = primary_addr;
+            billingSelect.value = primary_addr;
+        }
     } catch (error) {
         console.error('Error fetching addresses:', error);
     }
-});
+}
 
 // Same as shipping checkbox
-document.getElementById('same-as-shipping').addEventListener('change', (e) => {
+const sameAsShippingCheckbox = document.getElementById('same-as-shipping');
+const billingAddressGroup = document.getElementById('billing-address-group');
+
+sameAsShippingCheckbox.addEventListener('change', (e) => {
     const billingSelect = document.getElementById('billing-address-select');
     if (e.target.checked) {
         billingSelect.value = document.getElementById('shipping-address-select').value;
         billingSelect.disabled = true;
+        billingAddressGroup.style.display = 'none';
     } else {
         billingSelect.disabled = false;
+        billingAddressGroup.style.display = 'block';
     }
 });
+
+// Also sync when shipping address changes
+document.getElementById('shipping-address-select').addEventListener('change', (e) => {
+    if (sameAsShippingCheckbox.checked) {
+        document.getElementById('billing-address-select').value = e.target.value;
+    }
+});
+
+// Initialize - hide billing address on load since checkbox is checked by default
+if (sameAsShippingCheckbox.checked) {
+    billingAddressGroup.style.display = 'none';
+}
 
 function addOrderItemRow(autoFocus = false) {
     itemCounter++;
@@ -631,7 +841,7 @@ document.getElementById('cancel-order-btn').addEventListener('click', () => {
 document.getElementById('new-order-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const customerId = document.getElementById('customer-select').value;
+    const customerId = document.getElementById('selected-customer-id').value;
     const shippingAddressId = document.getElementById('shipping-address-select').value;
     const billingAddressId = document.getElementById('billing-address-select').value;
     
@@ -681,6 +891,16 @@ document.getElementById('new-order-form').addEventListener('submit', async (e) =
 
 // Close detail panel button
 document.getElementById('close-detail').addEventListener('click', closeDetailPanel);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+    // Cmd+N (Mac) or Ctrl+N (Windows/Linux) - New Order
+    if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        switchView('new-order');
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    }
+})
 
 // Initial load
 // Poll until backend is ready

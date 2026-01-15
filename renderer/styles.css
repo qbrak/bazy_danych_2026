@@ -207,7 +207,7 @@ table {
     flex: 1;
     overflow-y: auto;
     min-height: 0;
-    padding: 20px 0;
+    padding: 20px;
 }
 
 .table-container {
@@ -282,13 +282,14 @@ th {
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease-out;
-    border-top: 1px solid var(--border-color);
+    border-top: none;
     background-color: var(--bg-color);
 }
 
 .detail-panel.open {
     max-height: 50vh;
     overflow-y: auto;
+    border-top: 1px solid var(--border-color);
 }
 
 .detail-header {
@@ -439,6 +440,13 @@ tbody tr:hover {
     border-radius: 8px;
 }
 
+.form-section:first-child {
+    margin-top: 0;
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
 .form-section h3 {
     margin-top: 0;
     margin-bottom: 15px;
@@ -473,6 +481,94 @@ tbody tr:hover {
 .form-group select:focus {
     outline: none;
     border-color: var(--button-bg);
+}
+
+/* Search container for fuzzy matching */
+.search-container {
+    position: relative;
+}
+
+.search-container input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.search-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: none;
+    z-index: 100;
+    margin-top: 2px;
+}
+
+[data-theme="dark"] .search-dropdown {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.search-dropdown.visible {
+    display: block;
+}
+
+.search-result {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-result:last-child {
+    border-bottom: none;
+}
+
+.search-result:hover {
+    background: var(--header-bg);
+}
+
+.search-result.active {
+    background: var(--button-bg);
+    color: var(--button-text);
+}
+
+.search-result-primary {
+    font-weight: 500;
+    font-size: 0.95em;
+}
+
+.search-result-secondary {
+    font-size: 0.85em;
+    opacity: 0.8;
+}
+
+.search-result.active .search-result-secondary {
+    opacity: 1;
+}
+
+.search-result mark {
+    background: #fff3cd;
+    color: #000;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .search-result mark {
+    background: #4a4a00;
+    color: #ffeb3b;
+}
+
+.search-result.active mark {
+    background: rgba(255, 255, 255, 0.3);
+    color: inherit;
 }
 
 .checkbox-label {

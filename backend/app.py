@@ -201,8 +201,19 @@ def delete_user(user_id):
 
 @app.route('/users/<int:user_id>/addresses', methods=['GET'])
 def get_user_addresses(user_id):
-    """Get addresses for a user"""
-    return jsonify(None), 500 #TODO
+    """List all users"""
+    query = "SELECT * FROM addresses WHERE user_id = %s"
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(query, (user_id,))
+                user = cursor.fetchall()
+                if user is None:
+                    return jsonify({'error': 'User not found'}), 404
+                return jsonify(user), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/addresses', methods=['POST'])
 def create_address():

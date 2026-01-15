@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' http://127.0.0.1:5000; img-src 'self' data:;">
     <title>Inventory Manager</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -60,33 +61,37 @@
         </section>
 
         <section id="new-order-section" class="hidden">
-            <h2>Create New Order</h2>
             <form id="new-order-form" class="order-form">
                 <div class="form-section">
                     <h3>Customer Information</h3>
                     <div class="form-group">
-                        <label for="customer-select">Customer:</label>
-                        <select id="customer-select" required>
-                            <option value="">Select a customer...</option>
-                        </select>
+                        <label for="customer-search-input">Customer:</label>
+                        <div class="search-container">
+                            <input 
+                                type="text" 
+                                id="customer-search-input" 
+                                placeholder="Type to search customers..."
+                                autocomplete="off"
+                            />
+                            <input type="hidden" id="selected-customer-id" required />
+                            <div id="customer-search-results" class="search-dropdown"></div>
+                        </div>
                     </div>
-                </div>
-
-                <div class="form-section">
-                    <h3>Addresses</h3>
                     <div class="form-group">
                         <label for="shipping-address-select">Shipping Address:</label>
                         <select id="shipping-address-select" required>
                             <option value="">Select shipping address...</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="billing-address-group">
                         <label for="billing-address-select">Billing Address:</label>
                         <select id="billing-address-select" required>
                             <option value="">Select billing address...</option>
                         </select>
+                    </div>
+                    <div class="form-group">
                         <label class="checkbox-label">
-                            <input type="checkbox" id="same-as-shipping"> Same as shipping
+                            <input type="checkbox" id="same-as-shipping" checked> Same as shipping
                         </label>
                     </div>
                 </div>
@@ -123,6 +128,7 @@
             </form>
         </section>
     </div>
+    <script src="../node_modules/fuse.js/dist/fuse.js"></script>
     <script src="renderer.js"></script>
 </body>
 </html>
