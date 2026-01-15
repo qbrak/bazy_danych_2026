@@ -429,7 +429,7 @@ tbody tr:hover {
 
 /* New Order Form Styles */
 .order-form {
-    max-width: 800px;
+    width: 100%;
 }
 
 .form-section {
@@ -438,6 +438,8 @@ tbody tr:hover {
     background-color: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .form-section:first-child {
@@ -498,7 +500,7 @@ tbody tr:hover {
     top: 100%;
     left: 0;
     right: 0;
-    max-height: 300px;
+    max-height: min(300px, calc(100vh - var(--dropdown-top, 0px) - 20px));
     overflow-y: auto;
     background: var(--bg-color);
     border: 1px solid var(--border-color);
@@ -579,15 +581,103 @@ tbody tr:hover {
     cursor: pointer;
 }
 
+/* Book search specific styles */
+.search-result-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item.highlighted {
+    background: var(--header-bg);
+}
+
+.search-result-item.highlighted {
+    background: var(--button-bg);
+    color: var(--button-text);
+}
+
+.search-result-main {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.search-result-year {
+    font-size: 0.85em;
+    opacity: 0.7;
+}
+
+.search-result-author {
+    font-size: 0.85em;
+    opacity: 0.8;
+}
+
+.search-result-price {
+    font-size: 0.85em;
+    font-weight: 600;
+    color: #28a745;
+}
+
+[data-theme="dark"] .search-result-price {
+    color: #4ade80;
+}
+
+.search-result-item.highlighted .search-result-author,
+.search-result-item.highlighted .search-result-year,
+.search-result-item.highlighted .search-result-price {
+    opacity: 1;
+    color: inherit;
+}
+
+.search-result-item mark {
+    background: #fff3cd;
+    color: #000;
+    padding: 0 2px;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .search-result-item mark {
+    background: #4a4a00;
+    color: #ffeb3b;
+}
+
+.search-result-item.highlighted mark {
+    background: rgba(255, 255, 255, 0.3);
+    color: inherit;
+}
+
+.book-search-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.95em;
+    box-sizing: border-box;
+}
+
 .checkbox-label input[type="checkbox"] {
     width: auto;
 }
 
 .items-table {
     width: 100%;
+    min-width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
     background-color: var(--bg-color);
+    table-layout: auto;
 }
 
 .items-table th {

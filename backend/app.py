@@ -13,7 +13,7 @@ def load_env():
     # Project root is one level up from backend/
     project_root = app_dir.parent
     env_path = project_root / '.env'
-    
+
     if env_path.exists():
         load_dotenv(env_path)
         print(f"Loaded environment from: {env_path}")
@@ -46,9 +46,9 @@ def get_orders():
     """
     List all orders with summary info: order_id, user_id, status, total_amount
     """
-    
+
     query = """SELECT * FROM user_order_summary"""
-    
+
     try:
         with get_db_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
@@ -68,13 +68,13 @@ def get_order(order_id):
     try:
         with get_db_connection() as conn:
             order_details_query = """
-                SELECT 
+                SELECT
                     o.*,
                     u.*,
                     st.*,
                     row_to_json(sa.*) as shipping_address,
                     row_to_json(ba.*) as billing_address
-                FROM orders o 
+                FROM orders o
                 JOIN addresses sa ON o.shipping_address_id = sa.address_id
                 JOIN addresses ba ON o.billing_address_id = ba.address_id
                 JOIN users u ON sa.user_id = u.user_id
@@ -87,7 +87,7 @@ def get_order(order_id):
             with conn.cursor(row_factory=dict_row) as cursor:
                 cursor.execute(order_details_query, (order_id,))
                 items = cursor.fetchone()
-            
+
             # Get order items
             item_query = """
             SELECT * FROM order_items oi
@@ -149,7 +149,7 @@ def delete_order_item(item_id):
 def get_users():
     """List all users"""
     query = "SELECT * FROM users"
-    
+
     try:
         with get_db_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
@@ -166,7 +166,7 @@ def get_user(user_id):
     """
     Get single user details
     """
-    
+
     query = "SELECT * FROM users WHERE user_id = %s"
     try:
         with get_db_connection() as conn:
@@ -203,7 +203,7 @@ def delete_user(user_id):
 def get_user_addresses(user_id):
     """List all users"""
     query = "SELECT * FROM addresses WHERE user_id = %s"
-    
+
     try:
         with get_db_connection() as conn:
             with conn.cursor(row_factory=dict_row) as cursor:
@@ -233,51 +233,60 @@ def update_address(address_id):
 @app.route('/books', methods=['GET'])
 def get_books():
     """
-    List all books. Filters: ?search=, ?category_id=, ?author_id=
+    List all books with their authors aggregated.
     
-    Setting search will find all books that contain given string in their title
+    Returns: isbn, title, publication_year, and authors (as JSON array)
     """
-    search = request.args.get('search', type=str)
-    category_id = request.args.get('category_id', type=int)
-    author_id = request.args.get('author_id', type=str)
-    
+
     query = """\
-        SELECT DISTINCT isbn, title, publication_year FROM books
-        JOIN book_categories USING (isbn)
-        JOIN authorship USING (isbn)
-        WHERE 1=1
+        SELECT 
+            b.isbn,
+            b.title,
+            b.publication_year,
+            p.unit_price,
+            
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'author_id', a.author_id,
+                        'name', a.name,
+                        'surname', a.surname
+                    ) ORDER BY a.surname, a.name
+                ) FILTER (WHERE a.author_id IS NOT NULL),
+                '[]'::json
+            ) as authors
+
+        FROM books b
+        LEFT JOIN authorship au ON b.isbn = au.isbn
+        LEFT JOIN authors a ON au.author_id = a.author_id
+        LEFT JOIN prices p ON b.isbn = p.isbn AND p.valid_until IS NULL
+
+        GROUP BY b.isbn, b.title, b.publication_year, p.unit_price
+        ORDER BY b.title
         """
-    
-    if search is not None: 
-        query = query + f" AND title LIKE '%{search}%'"
-        
-    if category_id is not None:
-        query = query + f" AND category_id = {category_id}"
-        
-    if author_id is not None:
-        query = query + f" AND author_id = '{author_id}'"
-    
+
     try:
-        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
-            cursor.execute(query)
-            items = cursor.fetchall()
-            return jsonify(items), 200
+        with get_db_connection() as conn:
+            with conn.cursor(row_factory=dict_row) as cursor:
+                cursor.execute(query)
+                items = cursor.fetchall()
+                return jsonify(items), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
 
 @app.route('/books/<isbn>', methods=['GET'])
 def get_book(isbn):
     """Get book summary
-    
+
     Returns:
     title, publication year, current price id and unit price, inventory id,
     stocked quantity, and average review rating
-    
+
     This uses LEFT OUTER JOIN, so if the book is not stocked,
     the latter values will be NULL
     """
-    
+
     query = """\
         SELECT title, publication_year, price_id, unit_price, inventory_id,
             quantity, stars FROM books
@@ -287,7 +296,7 @@ def get_book(isbn):
         WHERE isbn = %s
         AND valid_until IS NULL
         """
-        
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query, (isbn, ))
@@ -299,13 +308,13 @@ def get_book(isbn):
 @app.route('/books/<isbn>/authors', methods=['GET'])
 def get_book_authors(isbn):
     """Get all authors of a book"""
-    
+
     query = """\
         SELECT author_id, name, surname FROM authors
         JOIN authorship USING (author_id)
         WHERE isbn = %s
         """
-        
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query, (isbn, ))
@@ -317,13 +326,13 @@ def get_book_authors(isbn):
 @app.route('/books/<isbn>/categories', methods=['GET'])
 def get_book_categories(isbn):
     """Get all categories that the book is in"""
-    
+
     query = """\
         SELECT category_id, category_name FROM categories
         JOIN book_categories USING (category_id)
         WHERE isbn = %s
         """
-    
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query, (isbn, ))
@@ -340,13 +349,13 @@ def get_book_categories(isbn):
 def get_inventory():
     """List all inventory. Filter: ?low_stock=true
     """
-    
+
     low_stock = request.args.get('low_stock', type=str)
     if low_stock is not None:
         return jsonify({'error': "low stock argument is not yet handled"}), 500 #TODO
-    
+
     query = """SELECT * FROM inventory"""
-   
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
@@ -368,13 +377,13 @@ def update_inventory(inventory_id):
 def get_offers():
     """List all current sell offers. With price_id, unit_price and stocked quantity
     """
-    
+
     query = """\
         SELECT price_id, unit_price, quantity FROM prices
         JOIN books USING (isbn)
         LEFT OUTER JOIN inventory USING (isbn)
-        """    
-   
+        """
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
@@ -382,16 +391,16 @@ def get_offers():
             return jsonify(items), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-        
+
 @app.route('/price/<isbn>', methods=['GET'])
 def get_price_of(isbn):
     """Get all prices of a book (including archival), sorted so that current price is first
-    
+
     Filter: ?valid_only=true -- show only prices that are still valid
     """
-    
+
     valid_only = request.args.get('valid_only', type=bool, default=False)
-    
+
     if valid_only:
         query = """\
             SELECT price_id, unit_price, valid_until FROM prices
@@ -399,16 +408,16 @@ def get_price_of(isbn):
             AND valid_until IS NULL
             ORDER BY valid_until DESC
             """
-        
+
     else:
         query = """\
             SELECT price_id, unit_price, valid_until FROM prices
             WHERE isbn = %s
             ORDER BY valid_until DESC
             """
-        
-    
-   
+
+
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query, (isbn, ))
@@ -424,9 +433,9 @@ def get_price_of(isbn):
 @app.route('/statuses', methods=['GET'])
 def get_statuses():
     """List all order statuses"""
-    
-    query = "SELECT * FROM statuses"   
-   
+
+    query = "SELECT * FROM statuses"
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
@@ -443,8 +452,8 @@ def get_statuses():
 @app.route('/authors', methods=['GET'])
 def get_authors():
     """List all authors"""
-    query = "SELECT * FROM authors"   
-   
+    query = "SELECT * FROM authors"
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
@@ -466,8 +475,8 @@ def create_author():
 @app.route('/categories', methods=['GET'])
 def get_categories():
     """List all categories"""
-    query = "SELECT * FROM categories"   
-   
+    query = "SELECT * FROM categories"
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
@@ -483,8 +492,8 @@ def get_categories():
 @app.route('/books/<isbn>/reviews', methods=['GET'])
 def get_book_reviews(isbn):
     """Get reviews for a book"""
-    query = "SELECT * FROM reviews WHERE isbn = %s"   
-   
+    query = "SELECT * FROM reviews WHERE isbn = %s"
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query, (isbn, ))
@@ -498,15 +507,15 @@ def get_book_reviews(isbn):
 @app.route('/books/bestsellers', methods=['GET'])
 def get_bestsellers():
     """Get books that were bought the most times"""
-    
+
     query = """\
         SELECT isbn, title, sum(quantity) as sold_copies FROM books
         JOIN prices USING (isbn)
         JOIN order_items USING (price_id)
         GROUP BY isbn
         ORDER BY sold_copies DESC
-        """  
-   
+        """
+
     try:
         with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)

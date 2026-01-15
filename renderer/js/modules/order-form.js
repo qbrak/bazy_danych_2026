@@ -1,7 +1,6 @@
 // ============= NEW ORDER FORM =============
 
 let itemCounter = 0;
-let availableBooks = [];
 
 async function initNewOrderForm(apiUrl) {
     // Reset form
@@ -9,34 +8,17 @@ async function initNewOrderForm(apiUrl) {
     document.getElementById('order-items-container').innerHTML = '';
     document.getElementById('new-order-form').reset();
     
-    // Fetch customers and books
-    await Promise.all([fetchCustomers(apiUrl), fetchBooks(apiUrl)]);
+    // Fetch customers and books in parallel for responsiveness
+    await Promise.all([
+        fetchCustomers(apiUrl), 
+        fetchBooksForSearch(apiUrl)
+    ]);
     
     // Add initial empty row
     addOrderItemRow();
     
     // Focus on customer search input
     document.getElementById('customer-search-input').focus();
-}
-
-async function fetchBooks(apiUrl) {
-    try {
-        // Fetch inventory which has current prices
-        const response = await fetch(`${apiUrl}/inventory`);
-        if (!response.ok) throw new Error('Failed to fetch inventory');
-        const inventory = await response.json();
-        
-        // Transform to include price information
-        availableBooks = inventory.map(item => ({
-            isbn: item.isbn,
-            title: item.title || 'Unknown Title',
-            publication_year: item.publication_year,
-            inventory_id: item.inventory_id,
-            price: parseFloat(item.unit_cost || 0)
-        }));
-    } catch (error) {
-        console.error('Error fetching books:', error);
-    }
 }
 
 function initSameAsShippingCheckbox() {
@@ -75,14 +57,22 @@ function addOrderItemRow(autoFocus = false) {
     row.className = 'order-item-row';
     row.dataset.itemId = itemCounter;
     
+    const searchId = `book-search-${itemCounter}`;
+    const resultsId = `book-results-${itemCounter}`;
+    
     row.innerHTML = `
         <td>
-            <select class="book-select">
-                <option value="">Select a book...</option>
-                ${availableBooks.map(book => `
-                    <option value="${book.isbn}" data-price="${book.price}">${book.title} (${book.publication_year})</option>
-                `).join('')}
-            </select>
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="${searchId}"
+                    class="book-search-input" 
+                    placeholder="Type to search books..."
+                    autocomplete="off"
+                />
+                <input type="hidden" class="selected-book-isbn" />
+                <div id="${resultsId}" class="search-dropdown"></div>
+            </div>
         </td>
         <td>
             <input type="number" class="quantity-input" min="1" value="1">
@@ -96,23 +86,44 @@ function addOrderItemRow(autoFocus = false) {
     
     container.appendChild(row);
     
-    const bookSelect = row.querySelector('.book-select');
+    const bookInput = row.querySelector(`#${searchId}`);
+    const bookResultsDiv = row.querySelector(`#${resultsId}`);
+    const isbnInput = row.querySelector('.selected-book-isbn');
     const quantityInput = row.querySelector('.quantity-input');
     const unitPriceCell = row.querySelector('.unit-price');
     const rowTotalCell = row.querySelector('.row-total');
     
-    // Update price and total when book is selected
-    bookSelect.addEventListener('change', (e) => {
-        const selectedOption = e.target.selectedOptions[0];
-        const price = parseFloat(selectedOption.dataset.price || 0);
-        unitPriceCell.textContent = `${price.toFixed(2)} zł`;
+    // Initialize book search for this row
+    bookInput._onBookSelected = (book) => {
+        isbnInput.value = book.isbn;
+        unitPriceCell.textContent = `${book.price.toFixed(2)} zł`;
+        row.dataset.price = book.price;
+        
+        // Replace the search input with a formatted display
+        const searchContainer = row.querySelector('.search-container');
+        const yearText = book.publication_year ? ` (${book.publication_year})` : '';
+        const authorText = book.authorDisplay ? `<div style="font-size: 0.85em; color: var(--text-color); opacity: 0.7; margin-top: 2px;">— ${book.authorDisplay}</div>` : '';
+        
+        searchContainer.innerHTML = `
+            <div class="book-display" style="padding: 8px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 4px;">
+                <div style="font-weight: 500;">${book.title}${yearText}</div>
+                ${authorText}
+            </div>
+            <input type="hidden" class="selected-book-isbn" value="${book.isbn}" />
+        `;
+        
         updateRowTotal(row);
         updateOrderTotal();
         
-        if (e.target.value && !hasEmptyRow()) {
-            addOrderItemRow();
+        // Add new row and focus on it
+        if (!hasEmptyRow()) {
+            setTimeout(() => {
+                addOrderItemRow(true);
+            }, 0);
         }
-    });
+    };
+    
+    initBookSearch(bookInput, bookResultsDiv, bookInput._onBookSelected);
     
     // Update total when quantity changes
     quantityInput.addEventListener('input', () => {
@@ -135,14 +146,14 @@ function addOrderItemRow(autoFocus = false) {
     });
     
     if (autoFocus) {
-        bookSelect.focus();
+        bookInput.focus();
     }
+    
+    return row;
 }
 
 function updateRowTotal(row) {
-    const bookSelect = row.querySelector('.book-select');
-    const selectedOption = bookSelect.selectedOptions[0];
-    const price = parseFloat(selectedOption?.dataset?.price || 0);
+    const price = parseFloat(row.dataset.price || 0);
     const quantity = parseInt(row.querySelector('.quantity-input').value || 0);
     const total = price * quantity;
     
@@ -152,10 +163,9 @@ function updateRowTotal(row) {
 function updateOrderTotal() {
     let total = 0;
     document.querySelectorAll('.order-item-row').forEach(row => {
-        const bookSelect = row.querySelector('.book-select');
-        if (bookSelect.value) {
-            const selectedOption = bookSelect.selectedOptions[0];
-            const price = parseFloat(selectedOption?.dataset?.price || 0);
+        const isbnInput = row.querySelector('.selected-book-isbn');
+        if (isbnInput && isbnInput.value) {
+            const price = parseFloat(row.dataset.price || 0);
             const quantity = parseInt(row.querySelector('.quantity-input').value || 0);
             total += price * quantity;
         }
@@ -167,8 +177,8 @@ function updateOrderTotal() {
 function hasEmptyRow() {
     const rows = document.querySelectorAll('.order-item-row');
     return Array.from(rows).some(row => {
-        const bookSelect = row.querySelector('.book-select');
-        return !bookSelect.value;
+        const isbnInput = row.querySelector('.selected-book-isbn');
+        return !isbnInput || !isbnInput.value;
     });
 }
 
@@ -191,7 +201,8 @@ function initOrderFormHandlers(apiUrl, switchView) {
         // Collect order items
         const items = [];
         document.querySelectorAll('.order-item-row').forEach(row => {
-            const isbn = row.querySelector('.book-select').value;
+            const isbnInput = row.querySelector('.selected-book-isbn');
+            const isbn = isbnInput ? isbnInput.value : null;
             const quantity = parseInt(row.querySelector('.quantity-input').value);
             if (isbn && quantity > 0) {
                 items.push({ isbn, quantity });

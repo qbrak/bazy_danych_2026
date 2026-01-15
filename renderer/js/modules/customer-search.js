@@ -26,6 +26,9 @@ async function fetchCustomers(apiUrl) {
         
         // Initialize search input listener
         initCustomerSearch();
+
+        console.log(`Loaded ${customers.length} customers for search`);
+
     } catch (error) {
         console.error('Error fetching customers:', error);
     }
@@ -129,6 +132,15 @@ function displayCustomerResults(results) {
     }
     
     resultsDropdown.classList.add('visible');
+    adjustCustomerDropdownHeight(resultsDropdown);
+}
+
+function adjustCustomerDropdownHeight(dropdown) {
+    const rect = dropdown.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.top;
+    const maxHeight = Math.min(300, spaceBelow - 20);
+    dropdown.style.maxHeight = `${maxHeight}px`;
 }
 
 function highlightMatches(text, matches, keys) {
