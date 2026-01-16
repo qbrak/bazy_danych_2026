@@ -100,16 +100,23 @@ function addOrderItemRow(autoFocus = false) {
         row.dataset.price = book.price;
         
         // Set max quantity based on available stock
-        quantityInput.max = book.available_quantity || 999;
-        if (book.available_quantity && quantityInput.value > book.available_quantity) {
-            quantityInput.value = book.available_quantity;
+        const availableQty = book.available_quantity ?? 999;
+        quantityInput.max = availableQty;
+        quantityInput.min = availableQty > 0 ? 1 : 0;
+        if (availableQty === 0) {
+            quantityInput.value = 0;
+            quantityInput.disabled = true;
+        } else if (parseInt(quantityInput.value) > availableQty) {
+            quantityInput.value = availableQty;
         }
         
         // Replace the search input with a formatted display
         const searchContainer = row.querySelector('.search-container');
         const yearText = book.publication_year ? ` (${book.publication_year})` : '';
         const authorText = book.authorDisplay ? `<div style="font-size: 0.85em; color: var(--text-color); opacity: 0.7; margin-top: 2px;">— ${book.authorDisplay}</div>` : '';
-        const stockText = book.available_quantity ? ` <span style="font-size: 0.85em; opacity: 0.6;">(${book.available_quantity} in stock)</span>` : '';
+        const stockText = availableQty === 0
+            ? ` <span style="font-size: 0.85em; color: #e74c3c;">(Out of stock)</span>`
+            : ` <span style="font-size: 0.85em; opacity: 0.6;">(${availableQty} in stock)</span>`;
         
         searchContainer.innerHTML = `
             <div class="book-display" style="padding: 8px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 4px;">
@@ -189,19 +196,73 @@ function hasEmptyRow() {
     });
 }
 
+function orderFormHasData() {
+    // Check if a customer is selected
+    const customerInput = document.getElementById('customer-search-input');
+    if (customerInput && customerInput.value.trim()) {
+        return true;
+    }
+
+    // Check if any books have been added
+    const rows = document.querySelectorAll('.order-item-row');
+    for (const row of rows) {
+        const isbnInput = row.querySelector('.selected-book-isbn');
+        if (isbnInput && isbnInput.value) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function isNewOrderViewVisible() {
+    const newOrderSection = document.getElementById('new-order-section');
+    return newOrderSection && !newOrderSection.classList.contains('hidden');
+}
+
+function confirmDiscardUnsavedOrder() {
+    // Returns true if OK to proceed, false if user wants to keep editing
+    if (!orderFormHasData()) {
+        return true;
+    }
+    // Inverted confirm: "No" cancels (returns false), "OK" discards (returns true)
+    return confirm('You have unsaved changes. Discard current order?');
+}
+
+function cancelOrder(switchView) {
+    if (!confirmDiscardUnsavedOrder()) {
+        return;
+    }
+    switchView('orders');
+    document.querySelector('.nav-item[data-view="orders"]').classList.add('active');
+    document.querySelector('.nav-item[data-view="new-order"]').classList.remove('active');
+}
+
 function initOrderFormHandlers(apiUrl, switchView) {
     // Cancel button
     document.getElementById('cancel-order-btn').addEventListener('click', () => {
-        switchView('orders');
-        document.querySelector('.nav-item[data-view="orders"]').classList.add('active');
-        document.querySelector('.nav-item[data-view="new-order"]').classList.remove('active');
+        cancelOrder(switchView);
     });
-    
+
+    // Keyboard shortcuts
+    document.getElementById('new-order-form').addEventListener('keydown', (e) => {
+        // CTRL+Enter (Windows) / CMD+Enter (Mac) to submit
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('new-order-form').requestSubmit();
+        }
+
+        // Escape to cancel order
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelOrder(switchView);
+        }
+    });
+
     // Form submission
     document.getElementById('new-order-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const customerId = document.getElementById('selected-customer-id').value;
         const shippingAddressId = document.getElementById('shipping-address-select').value;
         const billingAddressId = document.getElementById('billing-address-select').value;
         
@@ -223,26 +284,26 @@ function initOrderFormHandlers(apiUrl, switchView) {
         
         // Create order
         try {
-            const response = await fetch(`${apiUrl}/orders`, {
+            const response = await fetch(`${apiUrl}/create_order`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    user_id: customerId,
                     shipping_address_id: shippingAddressId,
                     billing_address_id: billingAddressId,
                     items: items
                 })
             });
             
-            if (!response.ok) throw new Error('Failed to create order');
-            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to create order');
+            }
+
             alert('Order created successfully!');
             switchView('orders');
-            document.querySelector('.nav-item[data-view="orders"]').classList.add('active');
-            document.querySelector('.nav-item[data-view="new-order"]').classList.remove('active');
         } catch (error) {
             console.error('Error creating order:', error);
-            alert('Failed to create order. Please try again.');
+            alert(`Failed to create order: ${error.message}`);
         }
     });
 }

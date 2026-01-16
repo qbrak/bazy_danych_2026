@@ -36,7 +36,7 @@ CREATE TABLE books(
     isbn             TEXT PRIMARY KEY,
     title            TEXT NOT NULL,
     publication_year INTEGER,
-    
+
     CHECK (length(isbn) = 10 OR length(isbn) = 13)
 );
 
@@ -76,7 +76,7 @@ CREATE TABLE users(
 CREATE TABLE addresses(
     address_id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     -- if user removes their account we want to remember adresses, just not who they belong to
-    user_id      INTEGER REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE, 
+    user_id      INTEGER REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE,
     street       varchar(100) NOT NULL,
     building_nr  INTEGER NOT NULL,
     apartment_nr INTEGER,
@@ -93,7 +93,7 @@ CREATE TABLE reviews(
     isbn        TEXT NOT NULL REFERENCES books(isbn) ON DELETE CASCADE ON UPDATE CASCADE,
     review_body varchar(2000),
     stars       INTEGER NOT NULL,
-    
+
     CHECK (0 <= stars AND stars <= 5)
 );
 
@@ -115,7 +115,7 @@ CREATE TABLE inventory(
     quantity_reserved INTEGER NOT NULL DEFAULT 0,
     last_restocked    DATE,
     quantity          INTEGER NOT NULL DEFAULT 0
-    
+
     CHECK (quantity >= 0)
     CHECK (quantity_reserved >= 0),
     CHECK (reorder_threshold >= 0),
@@ -156,7 +156,7 @@ CREATE TABLE prices(
     unit_price  DECIMAL(7, 2) NOT NULL,
     valid_from  TIMESTAMP NOT NULL DEFAULT NOW(),
     valid_until TIMESTAMP,  -- NULL means current
-    
+
     CHECK (unit_price >= 0),
     CHECK (valid_until IS NULL OR valid_until > valid_from)
 );
@@ -179,7 +179,7 @@ CREATE VIEW order_item_details AS (
 );
 
 -- Populate the `statuses` enumeration table:
-INSERT INTO statuses(status_name) VALUES 
+INSERT INTO statuses(status_name) VALUES
     ('Oczekujące'), ('W realizacji'), ('Wysłane'), ('Dostarczone'), ('Anulowane')
 ;
 
@@ -197,12 +197,22 @@ DECLARE
     shipping_owner_id INT;
     billing_owner_id INT;
 BEGIN
-    SELECT user_id INTO shipping_owner_id 
-        FROM addresses 
+    SELECT user_id INTO shipping_owner_id
+        FROM addresses
         WHERE address_id = NEW.shipping_address_id;
-    SELECT user_id INTO billing_owner_id 
-        FROM addresses 
+
+    IF shipping_owner_id IS NULL THEN
+        RAISE EXCEPTION 'Shipping address % does not exist', NEW.shipping_address_id;
+    END IF;
+
+    SELECT user_id INTO billing_owner_id
+        FROM addresses
         WHERE address_id = NEW.billing_address_id;
+
+    IF billing_owner_id IS NULL THEN
+        RAISE EXCEPTION 'Billing address % does not exist', NEW.billing_address_id;
+    END IF;
+
     IF shipping_owner_id <> billing_owner_id THEN
         RAISE EXCEPTION 'Shipping and billing addresses must belong to the same user';
     END IF;
@@ -224,14 +234,14 @@ DECLARE
 BEGIN
     -- Only check if the NEW row is attempting to be primary
     IF NEW.is_primary = TRUE THEN
-        SELECT count(*) INTO primary_address_count 
-            FROM addresses 
-            WHERE user_id = NEW.user_id 
+        SELECT count(*) INTO primary_address_count
+            FROM addresses
+            WHERE user_id = NEW.user_id
               AND is_primary = TRUE
               -- If inserting new row, then NEW.address can be NULL so exclude this CASE
               -- by using a value that cannot match any address_id
-              AND address_id != COALESCE(NEW.address_id, -1); 
-        
+              AND address_id != COALESCE(NEW.address_id, -1);
+
         IF primary_address_count > 0 THEN
             RAISE EXCEPTION 'At most one primary address is allowed per user';
         END IF;
@@ -244,3 +254,86 @@ CREATE TRIGGER trg_validate_at_most_one_primary_address
 BEFORE INSERT OR UPDATE ON addresses
 FOR EACH ROW
 EXECUTE FUNCTION validate_at_most_one_primary_address();
+
+
+CREATE OR REPLACE FUNCTION create_order_transaction(
+    p_shipping_id INTEGER,
+    p_billing_id INTEGER,
+     --
+     -- We pass the p_items as a JSON array with "isbn" and "quantity" , e.g.:
+     -- [ {"isbn": "9780534391140", "quantity": 2}, {"isbn": "9780730013426", "quantity": 1} ]
+     --
+    p_items JSONB
+)
+RETURNS JSON AS $$
+DECLARE
+    v_order_id INTEGER;
+    v_status_id INTEGER;
+    v_item RECORD;
+    v_price_id INTEGER;
+    v_unit_price NUMERIC;
+    v_quantity_in_stock INTEGER;
+    v_quantity_reserved INTEGER;
+BEGIN
+    -- We do not need to check if addresses belong to the same user here
+    -- because of the trigger on orders table
+
+    -- Get status ID
+    SELECT status_id INTO v_status_id FROM statuses WHERE status_name = 'Oczekujące';
+    IF v_status_id IS NULL THEN
+        RAISE EXCEPTION 'System Error: Status "Oczekujące" not found.';
+    END IF;
+
+    -- Create the order
+    INSERT INTO orders (shipping_address_id, billing_address_id, order_time, status_id)
+    VALUES (p_shipping_id, p_billing_id, NOW(), v_status_id)
+    RETURNING order_id INTO v_order_id;
+
+    -- Create all the order items and update inventory
+    FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(isbn text, quantity int)
+    LOOP
+        -- Sanity check inputs
+        IF v_item.quantity <= 0 THEN
+            RAISE EXCEPTION 'Quantity must be positive for ISBN %', v_item.isbn;
+        END IF;
+
+        -- FETCH PRICE + INVENTORY + LOCK THE ROW
+        SELECT
+            p.price_id, p.unit_price, i.quantity, i.quantity_reserved
+        INTO
+            v_price_id, v_unit_price, v_quantity_in_stock, v_quantity_reserved
+        FROM inventory i
+        JOIN prices p ON i.isbn = p.isbn
+        WHERE i.isbn = v_item.isbn AND p.valid_until IS NULL
+        FOR UPDATE OF i; -- <--- CRITICAL LOCK to prevent race conditions
+
+        -- Checks
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Book % not found or price missing.', v_item.isbn;
+        END IF;
+
+        -- We keep this explicit check here to get better error message
+        IF (v_quantity_in_stock - v_quantity_reserved) < v_item.quantity THEN
+             RAISE EXCEPTION 'Insufficient stock for %. Requested: %, Available: %',
+                             v_item.isbn, v_item.quantity, (v_quantity_in_stock - v_quantity_reserved);
+        END IF;
+
+        -- Insert Order Item
+        INSERT INTO order_items (order_id, price_id, quantity)
+        VALUES (v_order_id, v_price_id, v_item.quantity);
+
+        -- Update Inventory
+        UPDATE inventory
+        SET quantity_reserved = quantity_reserved + v_item.quantity
+        WHERE isbn = v_item.isbn;
+
+    END LOOP;
+
+    -- Return success object
+    RETURN json_build_object(
+        'success', true,
+        'order_id', v_order_id,
+        'message', 'Order created successfully'
+    );
+END;
+$$ LANGUAGE plpgsql;

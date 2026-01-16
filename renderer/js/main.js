@@ -11,6 +11,10 @@ const navMenu = document.getElementById('nav-menu');
 
 // New Order button handling
 document.getElementById('new-order-btn').addEventListener('click', () => {
+    // If already in new-order view with data, confirm before resetting
+    if (isNewOrderViewVisible() && !confirmDiscardUnsavedOrder()) {
+        return;
+    }
     switchView('new-order');
     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
 });
@@ -87,6 +91,10 @@ document.addEventListener('keydown', (e) => {
     // Cmd+N (Mac) or Ctrl+N (Windows/Linux) - New Order
     if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
         e.preventDefault();
+        // If already in new-order view with data, confirm before resetting
+        if (isNewOrderViewVisible() && !confirmDiscardUnsavedOrder()) {
+            return;
+        }
         switchView('new-order');
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     }
