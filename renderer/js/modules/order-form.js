@@ -220,42 +220,91 @@ function isNewOrderViewVisible() {
     return newOrderSection && !newOrderSection.classList.contains('hidden');
 }
 
-function confirmDiscardUnsavedOrder() {
+function isConfirmModalVisible() {
+    const modal = document.getElementById('confirm-modal');
+    return modal && !modal.classList.contains('hidden');
+}
+
+function showConfirmModal(message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const messageEl = document.getElementById('confirm-modal-message');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        const confirmBtn = document.getElementById('confirm-modal-confirm');
+
+        messageEl.textContent = message;
+        modal.classList.remove('hidden');
+
+        // Focus on "Keep editing" button (safe default)
+        cancelBtn.focus();
+
+        const cleanup = () => {
+            modal.classList.add('hidden');
+            cancelBtn.removeEventListener('click', onCancel);
+            confirmBtn.removeEventListener('click', onConfirm);
+            document.removeEventListener('keydown', onKeydown);
+        };
+
+        const onCancel = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        const onConfirm = () => {
+            cleanup();
+            resolve(true);
+        };
+
+        const onKeydown = (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                onCancel();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                // Enter confirms the focused button
+                if (document.activeElement === confirmBtn) {
+                    onConfirm();
+                } else {
+                    onCancel();
+                }
+            }
+        };
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+        document.addEventListener('keydown', onKeydown);
+    });
+}
+
+async function confirmDiscardUnsavedOrder() {
     // Returns true if OK to proceed, false if user wants to keep editing
     if (!orderFormHasData()) {
         return true;
     }
-    // Inverted confirm: "No" cancels (returns false), "OK" discards (returns true)
-    return confirm('You have unsaved changes. Discard current order?');
-}
-
-function cancelOrder(switchView) {
-    if (!confirmDiscardUnsavedOrder()) {
-        return;
-    }
-    switchView('orders');
-    document.querySelector('.nav-item[data-view="orders"]').classList.add('active');
-    document.querySelector('.nav-item[data-view="new-order"]').classList.remove('active');
+    return await showConfirmModal('You have unsaved changes. Discard current order?');
 }
 
 function initOrderFormHandlers(apiUrl, switchView) {
     // Cancel button
     document.getElementById('cancel-order-btn').addEventListener('click', () => {
-        cancelOrder(switchView);
+        switchView('orders');
     });
 
-    // Keyboard shortcuts
+    // CTRL+Enter / CMD+Enter to submit (on form)
     document.getElementById('new-order-form').addEventListener('keydown', (e) => {
-        // CTRL+Enter (Windows) / CMD+Enter (Mac) to submit
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
             e.preventDefault();
             document.getElementById('new-order-form').requestSubmit();
         }
+    });
 
-        // Escape to cancel order
-        if (e.key === 'Escape') {
+    // Escape to cancel order - listen on document level to catch it regardless of focus
+    document.addEventListener('keydown', async (e) => {
+        if (e.key === 'Escape' && isNewOrderViewVisible() && !isConfirmModalVisible()) {
             e.preventDefault();
-            cancelOrder(switchView);
+            await switchView('orders');
         }
     });
 

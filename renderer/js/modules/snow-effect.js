@@ -80,7 +80,10 @@ class SnowEffect {
     
     ctx.clearRect(0, 0, width, height);
     ctx.globalAlpha = this.opacity;
-    ctx.fillStyle = 'white';
+
+    // Dark snow on light theme, light snow on dark theme
+    const isDarkTheme = document.body.getAttribute('data-theme') === 'dark';
+    ctx.fillStyle = isDarkTheme ? '#e0e0e0' : '#333333';
     
     for (const p of this.particles) {
       const x = p.x * width;

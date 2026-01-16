@@ -18,7 +18,7 @@
             </div>
             <div class="header-right">
                 <button id="snow-btn" class="primary-btn main-screen-button">❄️ Let it snow</button>
-                <button id="new-order-btn" class="primary-btn main-screen-button">New Order</button>
+                <button id="new-order-btn" class="primary-btn main-screen-button has-tooltip">New Order</button>
             </div>
         </header>
 
@@ -122,12 +122,25 @@
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="primary-btn">Create Order</button>
-                    <button type="button" id="cancel-order-btn" class="secondary-btn">Cancel</button>
+                    <button type="submit" class="primary-btn has-tooltip" id="submit-order-btn">Create Order</button>
+                    <button type="button" id="cancel-order-btn" class="secondary-btn has-tooltip">Cancel</button>
+                    <span class="shortcut-hint"></span>
                 </div>
             </form>
         </section>
     </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <p id="confirm-modal-message"></p>
+            <div class="modal-actions">
+                <button id="confirm-modal-cancel" class="secondary-btn">Keep editing</button>
+                <button id="confirm-modal-confirm" class="danger-btn">Discard</button>
+            </div>
+        </div>
+    </div>
+
     <!-- External Dependencies -->
     <script src="../node_modules/fuse.js/dist/fuse.js"></script>
     

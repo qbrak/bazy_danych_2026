@@ -10,13 +10,10 @@ const menuToggle = document.getElementById('menu-toggle');
 const navMenu = document.getElementById('nav-menu');
 
 // New Order button handling
-document.getElementById('new-order-btn').addEventListener('click', () => {
-    // If already in new-order view with data, confirm before resetting
-    if (isNewOrderViewVisible() && !confirmDiscardUnsavedOrder()) {
-        return;
+document.getElementById('new-order-btn').addEventListener('click', async () => {
+    if (await switchView('new-order')) {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     }
-    switchView('new-order');
-    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
 });
 
 // Menu toggle handling
@@ -34,31 +31,39 @@ document.addEventListener('click', (e) => {
 
 // Navigation handling - exclude theme menu item
 document.querySelectorAll('.nav-item:not(.disabled):not(#theme-menu-item)').forEach(item => {
-    item.addEventListener('click', (e) => {
+    item.addEventListener('click', async (e) => {
         e.preventDefault();
         const view = e.target.dataset.view;
-        
+
+        // Handle view switching (returns false if cancelled)
+        if (!await switchView(view)) {
+            return;
+        }
+
         // Update active state
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         e.target.classList.add('active');
-        
+
         // Close menu
         navMenu.classList.remove('open');
-        
-        // Handle view switching
-        switchView(view);
     });
 });
 
-function switchView(view) {
+async function switchView(view) {
+    // Guard: if leaving new-order view with unsaved data, confirm first
+    console.log('Requested view switch: ' + view)
+    if (isNewOrderViewVisible() && !await confirmDiscardUnsavedOrder()) {
+        return false;
+    }
+
     // Hide all sections
     document.getElementById('inventory-list-section').classList.add('hidden');
     document.getElementById('order-detail-panel').classList.remove('open');
     document.getElementById('new-order-section').classList.add('hidden');
-    
+
     // Update header title
     const headerTitle = document.querySelector('header h1');
-    
+
     // Show selected view
     if (view === 'orders') {
         document.getElementById('inventory-list-section').classList.remove('hidden');
@@ -69,12 +74,17 @@ function switchView(view) {
         headerTitle.textContent = 'New Order';
         initNewOrderForm(API_URL);
     }
+
+    return true;
 }
 
 // ============= INITIALIZATION =============
 
 // Initialize theme
 initTheme();
+
+// Initialize keyboard shortcut hints (platform-aware)
+initShortcutHints();
 
 // Initialize snow effect
 initSnowEffect();
@@ -87,16 +97,13 @@ initOrderFormHandlers(API_URL, switchView);
 document.getElementById('close-detail').addEventListener('click', closeDetailPanel);
 
 // Keyboard shortcuts
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', async (e) => {
     // Cmd+N (Mac) or Ctrl+N (Windows/Linux) - New Order
     if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
         e.preventDefault();
-        // If already in new-order view with data, confirm before resetting
-        if (isNewOrderViewVisible() && !confirmDiscardUnsavedOrder()) {
-            return;
+        if (await switchView('new-order')) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         }
-        switchView('new-order');
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     }
 });
 
