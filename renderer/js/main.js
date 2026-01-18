@@ -71,9 +71,12 @@ document.querySelectorAll('.nav-item:not(.disabled):not(#theme-menu-item):not(#s
 });
 
 async function switchView(view) {
-    // Guard: if leaving new-order view with unsaved data, confirm first
+    // Guard: if leaving new-order or new-user view with unsaved data, confirm first
     console.log('Requested view switch: ' + view)
     if (isNewOrderViewVisible() && !await confirmDiscardUnsavedOrder()) {
+        return false;
+    }
+    if (isNewUserViewVisible() && !await confirmDiscardUnsavedUser()) {
         return false;
     }
 

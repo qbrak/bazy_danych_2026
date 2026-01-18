@@ -259,7 +259,43 @@ def create_user():
 @app.route('/users/<int:user_id>', methods=['PATCH'])
 def update_user(user_id):
     """Update user: name, surname, email, phone, email_verified"""
-    return jsonify(None), 500 #TODO
+    data = request.get_json()
+    if not data:
+        abort(400, description='No JSON data provided')
+
+    # Build dynamic update query based on provided fields
+    allowed_fields = ['name', 'surname', 'email', 'phone', 'email_verified']
+    updates = []
+    values = []
+
+    for field in allowed_fields:
+        if field in data:
+            updates.append(f"{field} = %s")
+            values.append(data[field])
+
+    if not updates:
+        abort(400, description='No valid fields to update')
+
+    values.append(user_id)
+
+    with get_db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            # Check if user exists
+            cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+            if cursor.fetchone() is None:
+                abort(404, description='User not found')
+
+            # Update user
+            query = f"""
+                UPDATE users
+                SET {', '.join(updates)}
+                WHERE user_id = %s
+                RETURNING user_id, name, surname, email, phone, email_verified
+            """
+            cursor.execute(query, values)
+            user = cursor.fetchone()
+            conn.commit()
+            return jsonify(user), 200
 
 @app.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
@@ -273,23 +309,110 @@ def delete_user(user_id):
 
 @app.route('/users/<int:user_id>/addresses', methods=['GET'])
 def get_user_addresses(user_id):
-    """List addresses for a user"""
-    query = "SELECT * FROM addresses WHERE user_id = %s"
+    """List addresses for a user, ordered by address_id for consistency"""
+    query = "SELECT * FROM addresses WHERE user_id = %s ORDER BY address_id"
     with get_db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query, (user_id,))
             addresses = cursor.fetchall()
             return jsonify(addresses), 200
 
-@app.route('/addresses', methods=['POST'])
-def create_address():
-    """Create new address"""
-    return jsonify(None), 500 #TODO
+@app.route('/users/<int:user_id>/addresses', methods=['POST'])
+def create_address(user_id):
+    """Create new address for a user"""
+    data = request.get_json()
+    if not data:
+        abort(400, description='No JSON data provided')
+
+    required_fields = ['street', 'city', 'postal_code']
+    for field in required_fields:
+        if field not in data or not data[field]:
+            abort(400, description=f'Missing required field: {field}')
+
+    with get_db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            # Check if user exists
+            cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+            if cursor.fetchone() is None:
+                abort(404, description='User not found')
+
+            # If this should be primary, unset other primary addresses first
+            is_primary = data.get('is_primary', False)
+            if is_primary:
+                cursor.execute(
+                    "UPDATE addresses SET is_primary = FALSE WHERE user_id = %s",
+                    (user_id,)
+                )
+
+            # Insert the address
+            cursor.execute("""
+                INSERT INTO addresses (user_id, street, building_nr, apartment_nr, city, postal_code, country, is_primary)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING *
+            """, (
+                user_id,
+                data['street'],
+                data.get('building_nr'),
+                data.get('apartment_nr'),
+                data['city'],
+                data['postal_code'],
+                data.get('country', 'Polska'),
+                is_primary
+            ))
+            address = cursor.fetchone()
+            conn.commit()
+            return jsonify(address), 201
 
 @app.route('/addresses/<int:address_id>', methods=['PATCH'])
 def update_address(address_id):
-    """Update address"""
-    return jsonify(None), 500 #TODO
+    """Update address (including setting as primary)"""
+    data = request.get_json()
+    if not data:
+        abort(400, description='No JSON data provided')
+
+    with get_db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            # Get the address and its user_id
+            cursor.execute("SELECT * FROM addresses WHERE address_id = %s", (address_id,))
+            address = cursor.fetchone()
+            if address is None:
+                abort(404, description='Address not found')
+
+            # If setting as primary and it's not already primary, unset other primary addresses first
+            if data.get('is_primary', False) and not address['is_primary']:
+                cursor.execute(
+                    "UPDATE addresses SET is_primary = FALSE WHERE user_id = %s AND is_primary = TRUE",
+                    (address['user_id'],)
+                )
+            elif data.get('is_primary', False) and address['is_primary']:
+                # Already primary, just return the current address
+                return jsonify(address), 200
+
+            # Build dynamic update query
+            allowed_fields = ['street', 'building_nr', 'apartment_nr', 'city', 'postal_code', 'country', 'is_primary']
+            updates = []
+            values = []
+
+            for field in allowed_fields:
+                if field in data:
+                    updates.append(f"{field} = %s")
+                    values.append(data[field])
+
+            if not updates:
+                abort(400, description='No valid fields to update')
+
+            values.append(address_id)
+
+            query = f"""
+                UPDATE addresses
+                SET {', '.join(updates)}
+                WHERE address_id = %s
+                RETURNING *
+            """
+            cursor.execute(query, values)
+            updated_address = cursor.fetchone()
+            conn.commit()
+            return jsonify(updated_address), 200
 
 
 # =============================================================================

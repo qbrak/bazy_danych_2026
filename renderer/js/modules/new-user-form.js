@@ -27,6 +27,14 @@ function isNewUserViewVisible() {
     return newUserSection && !newUserSection.classList.contains('hidden');
 }
 
+async function confirmDiscardUnsavedUser() {
+    // Returns true if OK to proceed, false if user wants to keep editing
+    if (!userFormHasData()) {
+        return true;
+    }
+    return await showConfirmModal('You have unsaved changes. Discard current user?');
+}
+
 // Simple hash function for password (SHA-256)
 async function hashPassword(password) {
     const encoder = new TextEncoder();
@@ -52,7 +60,7 @@ function initNewUserFormHandlers(apiUrl, switchView) {
 
     // Escape to cancel - listen on document level
     document.addEventListener('keydown', async (e) => {
-        if (e.key === 'Escape' && isNewUserViewVisible()) {
+        if (e.key === 'Escape' && isNewUserViewVisible() && !isConfirmModalVisible()) {
             e.preventDefault();
             await switchView('users');
         }
