@@ -442,6 +442,35 @@ def get_categories():
 # REVIEWS
 # =============================================================================
 
+@app.route('/users/<int:user_id>/reviews', methods=['GET'])
+def get_user_reviews(user_id):
+    """Get reviews written by a user"""
+    query = """
+        SELECT r.*, b.title,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'author_id', a.author_id,
+                        'name', a.name,
+                        'surname', a.surname
+                    ) ORDER BY a.surname, a.name
+                ) FILTER (WHERE a.author_id IS NOT NULL),
+                '[]'::json
+            ) as authors
+        FROM reviews r
+        JOIN books b USING (isbn)
+        LEFT JOIN authorship s USING (isbn)
+        LEFT JOIN authors a USING (author_id)
+        WHERE r.user_id = %s
+        GROUP BY r.review_id, b.title
+        ORDER BY r.review_date DESC
+    """
+    with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(query, (user_id,))
+        items = cursor.fetchall()
+        return jsonify(items), 200
+
+
 @app.route('/books/<isbn>/reviews', methods=['GET'])
 def get_book_reviews(isbn):
     """Get reviews for a book"""

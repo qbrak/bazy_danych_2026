@@ -91,6 +91,7 @@ CREATE TABLE reviews(
     review_id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id     INTEGER REFERENCES users(user_id) ON DELETE SET NULL ON UPDATE CASCADE,
     isbn        TEXT NOT NULL REFERENCES books(isbn) ON DELETE CASCADE ON UPDATE CASCADE,
+    review_date TIMESTAMP NOT NULL,
     review_body varchar(2000),
     stars       INTEGER NOT NULL,
 
