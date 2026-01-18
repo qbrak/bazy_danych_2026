@@ -1,11 +1,37 @@
 // ============= USER DISPLAY & DETAIL =============
 
+// Store users data and Fuse instance for search
+let allUsers = [];
+let userFuse = null;
+let currentApiUrl = null;
+
 // Fetch and display users
 async function fetchUsers(apiUrl) {
+    currentApiUrl = apiUrl;
     try {
         const response = await fetch(`${apiUrl}/users`);
         if (!response.ok) throw new Error('Failed to fetch users');
         const users = await response.json();
+        allUsers = users;
+
+        // Initialize Fuse.js for fuzzy search
+        userFuse = new Fuse(users, {
+            keys: [
+                { name: 'name', weight: 0.3 },
+                { name: 'surname', weight: 0.3 },
+                { name: 'email', weight: 0.2 },
+                { name: 'phone', weight: 0.2 }
+            ],
+            threshold: 0.4,
+            includeMatches: true
+        });
+
+        // Clear search input when switching to users view
+        const searchInput = document.getElementById('user-search-input');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
         renderUsers(users, apiUrl);
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -14,17 +40,26 @@ async function fetchUsers(apiUrl) {
     }
 }
 
-function renderUsers(users, apiUrl) {
+function renderUsers(users, apiUrl, searchResults = null) {
     const usersBody = document.getElementById('users-body');
     usersBody.innerHTML = '';
 
-    users.forEach(user => {
+    if (users.length === 0) {
+        usersBody.innerHTML = '<tr><td colspan="5" class="empty-state">No users found</td></tr>';
+        return;
+    }
+
+    users.forEach((user, index) => {
         const row = document.createElement('tr');
+
+        // Get match info if available (for highlighting)
+        const matches = searchResults ? searchResults[index]?.matches : null;
+
         row.innerHTML = `
             <td>${user.user_id}</td>
-            <td>${user.name} ${user.surname}</td>
-            <td>${user.email}</td>
-            <td>${user.phone || 'N/A'}</td>
+            <td>${highlightMatch(user.name + ' ' + user.surname, matches, ['name', 'surname'])}</td>
+            <td>${highlightMatch(user.email, matches, ['email'])}</td>
+            <td>${highlightMatch(user.phone || 'N/A', matches, ['phone'])}</td>
             <td>${user.email_verified ? '✓' : '✗'}</td>
         `;
 
@@ -33,6 +68,74 @@ function renderUsers(users, apiUrl) {
         row.style.cursor = 'pointer';
 
         usersBody.appendChild(row);
+    });
+}
+
+// Highlight matched text
+function highlightMatch(text, matches, keys) {
+    if (!matches || !text) return text;
+
+    // Find matches for the specified keys
+    const relevantMatches = matches.filter(m => keys.includes(m.key));
+    if (relevantMatches.length === 0) return text;
+
+    // Get all indices to highlight
+    const indices = [];
+    relevantMatches.forEach(match => {
+        match.indices.forEach(([start, end]) => {
+            // Adjust indices for combined name+surname field
+            if (match.key === 'surname' && keys.includes('name')) {
+                // Surname appears after name + space
+                const nameLen = text.indexOf(' ') + 1;
+                indices.push([start + nameLen, end + nameLen]);
+            } else {
+                indices.push([start, end]);
+            }
+        });
+    });
+
+    if (indices.length === 0) return text;
+
+    // Sort indices and merge overlapping
+    indices.sort((a, b) => a[0] - b[0]);
+
+    let result = '';
+    let lastEnd = 0;
+
+    indices.forEach(([start, end]) => {
+        if (start > lastEnd) {
+            result += text.slice(lastEnd, start);
+        }
+        if (start >= lastEnd) {
+            result += `<mark>${text.slice(start, end + 1)}</mark>`;
+            lastEnd = end + 1;
+        }
+    });
+
+    result += text.slice(lastEnd);
+    return result;
+}
+
+// Initialize user search
+function initUserSearch() {
+    const searchInput = document.getElementById('user-search-input');
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+
+        if (!query) {
+            // Show all users when search is empty
+            renderUsers(allUsers, currentApiUrl);
+            return;
+        }
+
+        if (!userFuse) return;
+
+        // Perform fuzzy search
+        const results = userFuse.search(query);
+        const filteredUsers = results.map(r => r.item);
+        renderUsers(filteredUsers, currentApiUrl, results);
     });
 }
 
@@ -70,8 +173,10 @@ function renderUserDetail(user, addresses, reviews) {
 
     // Format address helper
     const formatAddress = (addr) => {
+        const isPrimary = addr.is_primary;
         return `
-            <div class="address-card">
+            <div class="address-card ${isPrimary ? 'primary' : ''}">
+                ${isPrimary ? '<span class="primary-badge" title="Primary address">★</span>' : ''}
                 <div class="address-line">${addr.street} ${addr.building_nr || ''}${addr.apartment_nr ? '/' + addr.apartment_nr : ''}</div>
                 <div class="address-line">${addr.postal_code} ${addr.city}</div>
                 <div class="address-line">${addr.country}</div>

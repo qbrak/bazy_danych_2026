@@ -10,26 +10,32 @@
 <body>
     <canvas id="snow-canvas"></canvas>
     
-    <div class="container">
-        <header>
-            <div class="header-left">
-                <button id="menu-toggle" class="menu-toggle">☰</button>
-                <h1>Orders</h1>
+    <div class="app-layout">
+        <nav id="nav-sidebar" class="nav-sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">Menu</span>
+                <button id="sidebar-close" class="sidebar-close">×</button>
             </div>
-            <div class="header-right">
-                <button id="snow-btn" class="primary-btn main-screen-button">❄️ Let it snow</button>
-                <button id="new-order-btn" class="primary-btn main-screen-button has-tooltip">New Order</button>
-            </div>
-        </header>
-
-        <nav id="nav-menu" class="nav-menu">
             <a href="#" class="nav-item active" data-view="orders">Orders</a>
             <a href="#" class="nav-item" data-view="users">Users</a>
             <a href="#" class="nav-item disabled" data-view="books">Books</a>
+            <a href="#" class="nav-item" id="snow-menu-item">Let it snow<span class="nav-icon-right">❄️</span></a>
             <a href="#" class="nav-item" id="theme-menu-item">Dark Mode</a>
         </nav>
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-        <section id="inventory-list-section">
+        <div class="main-content">
+            <header>
+                <div class="header-left">
+                    <button id="menu-toggle" class="menu-toggle">☰</button>
+                    <h1>Orders</h1>
+                </div>
+                <div class="header-right">
+                    <button id="new-btn" class="primary-btn main-screen-button has-tooltip">New Order</button>
+                </div>
+            </header>
+
+            <section id="inventory-list-section">
             <h2>Order List</h2>
             <div class="table-container">
                 <table id="inventory-table">
@@ -63,7 +69,11 @@
 
         <!-- Users View -->
         <section id="users-list-section" class="hidden">
-            <h2>User List</h2>
+            <div class="section-header">
+                <div class="search-box">
+                    <input type="text" id="user-search-input" placeholder="Search users..." autocomplete="off" />
+                </div>
+            </div>
             <div class="table-container">
                 <table id="users-table">
                     <thead>
@@ -161,6 +171,75 @@
                 </div>
             </form>
         </section>
+
+        <section id="new-user-section" class="hidden">
+            <form id="new-user-form" class="user-form">
+                <div class="form-section">
+                    <h3>User Information</h3>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="user-name">First Name:</label>
+                            <input type="text" id="user-name" required />
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="user-surname">Last Name:</label>
+                            <input type="text" id="user-surname" required />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="user-email">Email:</label>
+                        <input type="email" id="user-email" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="user-phone">Phone (optional):</label>
+                        <input type="tel" id="user-phone" placeholder="+48 xxx xxx xxx" />
+                    </div>
+                    <div class="form-group">
+                        <label for="user-password">Password:</label>
+                        <input type="password" id="user-password" required minlength="6" />
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Primary Address (optional)</h3>
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label for="address-street">Street:</label>
+                            <input type="text" id="address-street" placeholder="ul. Przykładowa" />
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="address-building">Building:</label>
+                            <input type="text" id="address-building" placeholder="12" />
+                        </div>
+                        <div class="form-group flex-1">
+                            <label for="address-apartment">Apt:</label>
+                            <input type="text" id="address-apartment" placeholder="3" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group flex-1">
+                            <label for="address-postal">Postal Code:</label>
+                            <input type="text" id="address-postal" placeholder="00-000" />
+                        </div>
+                        <div class="form-group flex-2">
+                            <label for="address-city">City:</label>
+                            <input type="text" id="address-city" placeholder="Wrocław" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="address-country">Country:</label>
+                        <input type="text" id="address-country" value="Polska" />
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-btn has-tooltip" id="submit-user-btn">Create User</button>
+                    <button type="button" id="cancel-user-btn" class="secondary-btn has-tooltip">Cancel</button>
+                    <span class="shortcut-hint"></span>
+                </div>
+            </form>
+        </section>
+        </div>
     </div>
 
     <!-- Confirmation Modal -->
@@ -186,7 +265,8 @@
     <script src="js/modules/order-display.js"></script>
     <script src="js/modules/user-display.js"></script>
     <script src="js/modules/order-form.js"></script>
-    
+    <script src="js/modules/new-user-form.js"></script>
+
     <!-- Main Application -->
     <script src="js/main.js"></script>
 </body>

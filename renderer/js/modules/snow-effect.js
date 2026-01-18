@@ -115,10 +115,11 @@ class SnowEffect {
 function initSnowEffect() {
   const snowCanvas = document.getElementById('snow-canvas');
   const snow = new SnowEffect(snowCanvas);
-  
-  document.getElementById('snow-btn').addEventListener('click', () => {
+
+  document.getElementById('snow-menu-item').addEventListener('click', (e) => {
+    e.preventDefault();
     snow.toggle();
   });
-  
+
   return snow;
 }

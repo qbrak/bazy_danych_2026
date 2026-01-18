@@ -7,30 +7,51 @@ window.API_URL = API_URL; // Make available globally for modules
 // ============= NAVIGATION =============
 
 const menuToggle = document.getElementById('menu-toggle');
-const navMenu = document.getElementById('nav-menu');
+const navSidebar = document.getElementById('nav-sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
+const sidebarClose = document.getElementById('sidebar-close');
 
-// New Order button handling
-document.getElementById('new-order-btn').addEventListener('click', async () => {
-    if (await switchView('new-order')) {
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+// Track current view for context-aware button
+let currentView = 'orders';
+
+// New/Action button handling (context-aware)
+document.getElementById('new-btn').addEventListener('click', async () => {
+    if (currentView === 'users') {
+        if (await switchView('new-user')) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        }
+    } else {
+        if (await switchView('new-order')) {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        }
     }
 });
 
-// Menu toggle handling
+// Sidebar toggle handling (mobile)
 menuToggle.addEventListener('click', (e) => {
     e.stopPropagation();
-    navMenu.classList.toggle('open');
+    navSidebar.classList.add('open');
+    sidebarOverlay.classList.add('visible');
 });
 
-// Close menu when clicking outside
-document.addEventListener('click', (e) => {
-    if (!navMenu.contains(e.target) && !menuToggle.contains(e.target)) {
-        navMenu.classList.remove('open');
+// Close sidebar
+function closeSidebar() {
+    navSidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('visible');
+}
+
+sidebarClose.addEventListener('click', closeSidebar);
+sidebarOverlay.addEventListener('click', closeSidebar);
+
+// Close sidebar with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && navSidebar.classList.contains('open')) {
+        closeSidebar();
     }
 });
 
-// Navigation handling - exclude theme menu item
-document.querySelectorAll('.nav-item:not(.disabled):not(#theme-menu-item)').forEach(item => {
+// Navigation handling - exclude theme and snow menu items
+document.querySelectorAll('.nav-item:not(.disabled):not(#theme-menu-item):not(#snow-menu-item)').forEach(item => {
     item.addEventListener('click', async (e) => {
         e.preventDefault();
         const view = e.target.dataset.view;
@@ -44,8 +65,8 @@ document.querySelectorAll('.nav-item:not(.disabled):not(#theme-menu-item)').forE
         document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         e.target.classList.add('active');
 
-        // Close menu
-        navMenu.classList.remove('open');
+        // Close sidebar (mobile)
+        closeSidebar();
     });
 });
 
@@ -62,23 +83,39 @@ async function switchView(view) {
     document.getElementById('users-list-section').classList.add('hidden');
     document.getElementById('user-detail-panel').classList.remove('open');
     document.getElementById('new-order-section').classList.add('hidden');
+    const newUserSection = document.getElementById('new-user-section');
+    if (newUserSection) newUserSection.classList.add('hidden');
 
     // Update header title
     const headerTitle = document.querySelector('header h1');
+    const newBtn = document.getElementById('new-btn');
 
     // Show selected view
     if (view === 'orders') {
         document.getElementById('inventory-list-section').classList.remove('hidden');
         headerTitle.textContent = 'Orders';
+        newBtn.textContent = 'New Order';
+        currentView = 'orders';
         fetchOrders(API_URL);
     } else if (view === 'users') {
         document.getElementById('users-list-section').classList.remove('hidden');
         headerTitle.textContent = 'Users';
+        newBtn.textContent = 'New User';
+        currentView = 'users';
         fetchUsers(API_URL);
     } else if (view === 'new-order') {
         document.getElementById('new-order-section').classList.remove('hidden');
         headerTitle.textContent = 'New Order';
+        newBtn.textContent = 'New Order';
         initNewOrderForm(API_URL);
+    } else if (view === 'new-user') {
+        const newUserSection = document.getElementById('new-user-section');
+        if (newUserSection) {
+            newUserSection.classList.remove('hidden');
+            headerTitle.textContent = 'New User';
+            newBtn.textContent = 'New User';
+            initNewUserForm(API_URL);
+        }
     }
 
     return true;
@@ -102,16 +139,23 @@ initAllPanelResizers();
 initSameAsShippingCheckbox();
 initOrderFormHandlers(API_URL, switchView);
 
+// Initialize new user form handlers
+initNewUserFormHandlers(API_URL, switchView);
+
+// Initialize user search
+initUserSearch();
+
 // Close detail panel buttons
 document.getElementById('close-detail').addEventListener('click', closeDetailPanel);
 document.getElementById('close-user-detail').addEventListener('click', closeUserDetailPanel);
 
 // Keyboard shortcuts
 document.addEventListener('keydown', async (e) => {
-    // Cmd+N (Mac) or Ctrl+N (Windows/Linux) - New Order
+    // Cmd+N (Mac) or Ctrl+N (Windows/Linux) - Context-aware new (Order or User)
     if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
         e.preventDefault();
-        if (await switchView('new-order')) {
+        const targetView = currentView === 'users' ? 'new-user' : 'new-order';
+        if (await switchView(targetView)) {
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
         }
     }

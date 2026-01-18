@@ -209,8 +209,52 @@ def get_user(user_id):
 
 @app.route('/users', methods=['POST'])
 def create_user():
-    """Create new user"""
-    return jsonify(None), 500 #TODO
+    """Create new user with optional primary address"""
+    data = request.get_json()
+    if not data:
+        abort(400, description='No JSON data provided')
+
+    required_fields = ['name', 'surname', 'email', 'passhash']
+    for field in required_fields:
+        if field not in data or not data[field]:
+            abort(400, description=f'Missing required field: {field}')
+
+    with get_db_connection() as conn:
+        with conn.cursor(row_factory=dict_row) as cursor:
+            # Insert the user
+            cursor.execute("""
+                INSERT INTO users (name, surname, passhash, email, email_verified, phone)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING user_id, name, surname, email, phone, email_verified
+            """, (
+                data['name'],
+                data['surname'],
+                data['passhash'],
+                data['email'],
+                data.get('email_verified', False),
+                data.get('phone')
+            ))
+            user = cursor.fetchone()
+
+            # If address data is provided, create the address
+            if data.get('address'):
+                addr = data['address']
+                cursor.execute("""
+                    INSERT INTO addresses (user_id, street, building_nr, apartment_nr, city, postal_code, country, is_primary)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
+                    RETURNING address_id
+                """, (
+                    user['user_id'],
+                    addr.get('street'),
+                    addr.get('building_nr'),
+                    addr.get('apartment_nr'),
+                    addr.get('city'),
+                    addr.get('postal_code'),
+                    addr.get('country', 'Polska')
+                ))
+
+            conn.commit()
+            return jsonify(user), 201
 
 @app.route('/users/<int:user_id>', methods=['PATCH'])
 def update_user(user_id):
