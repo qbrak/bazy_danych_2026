@@ -651,10 +651,12 @@ def get_book_reviews(isbn):
 def get_bestsellers():
     """Get books that were bought the most times"""
     query = """\
-        SELECT isbn, title, sum(quantity) as sold_copies FROM books
-        JOIN prices USING (isbn)
-        JOIN order_items USING (price_id)
-        GROUP BY isbn
+        SELECT b.isbn, b.title, b.publication_year, COALESCE(SUM(oi.quantity), 0) as sold_copies 
+        FROM books as b
+        JOIN prices as p USING (isbn)
+        LEFT JOIN order_items as oi USING (price_id)
+
+        GROUP BY b.isbn
         ORDER BY sold_copies DESC
         """
     with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:

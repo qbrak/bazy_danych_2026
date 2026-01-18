@@ -40,6 +40,7 @@ body {
     transition: background-color 0.3s, color 0.3s;
     height: 100vh;
     overflow: hidden;
+    box-sizing: border-box;
 }
 
 /* App layout with sidebar */
@@ -261,11 +262,13 @@ table {
 }
 
 #inventory-list-section,
-#users-list-section {
+#users-list-section,
+#books-list-section {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden;
 }
 
 .section-header {
@@ -332,10 +335,17 @@ table {
     overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 4px;
+    min-height: 0;
+    background-color: var(--bg-color);
 }
 
 .table-container table {
     margin-top: 0;
+    margin-bottom: 0;
+}
+
+.table-container tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .table-container thead {

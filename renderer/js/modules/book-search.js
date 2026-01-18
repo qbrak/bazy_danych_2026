@@ -38,13 +38,14 @@ async function fetchBooksForSearch(apiUrl) {
         // Initialize Fuse.js for fuzzy search
         booksFuse = new Fuse(booksCache, {
             keys: [
-                { name: 'title', weight: 0.57 },
-                { name: 'authorString', weight: 0.38 },
-                { name: 'isbn', weight: 0.05 }
+                { name: 'isbn', weight: 0.5 },
+                { name: 'title', weight: 0.35 },
+                { name: 'authorString', weight: 0.15 }
             ],
-            threshold: 0.4,
+            threshold: 0.3,
             includeMatches: true,
-            minMatchCharLength: 2
+            minMatchCharLength: 2,
+            ignoreLocation: true
         });
         
         console.log(`Loaded ${booksCache.length} books for search`);
@@ -76,8 +77,26 @@ function initBookSearch(inputElement, resultsElement, onBookSelected) {
             resultsElement.style.display = 'block';
             return;
         }
-        
-        // Search using Fuse.js
+
+        // Check if query looks like an ISBN (digits and dashes)
+        const isIsbnQuery = /^[\d-]+$/.test(searchTerm);
+
+        if (isIsbnQuery) {
+            // For ISBN queries, filter by exact prefix match first
+            const normalizedQuery = searchTerm.replace(/-/g, '');
+            const exactMatches = booksCache.filter(book =>
+                book.isbn.replace(/-/g, '').startsWith(normalizedQuery)
+            );
+
+            if (exactMatches.length > 0) {
+                // Convert to Fuse-like result format for displayBookResults
+                const results = exactMatches.map(book => ({ item: book, matches: [] }));
+                displayBookResults(results, resultsElement);
+                return;
+            }
+        }
+
+        // Fall back to fuzzy search
         const results = booksFuse.search(searchTerm);
         displayBookResults(results, resultsElement);
     });

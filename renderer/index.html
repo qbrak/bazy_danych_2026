@@ -18,7 +18,7 @@
             </div>
             <a href="#" class="nav-item active" data-view="orders">Orders</a>
             <a href="#" class="nav-item" data-view="users">Users</a>
-            <a href="#" class="nav-item disabled" data-view="books">Books</a>
+            <a href="#" class="nav-item" data-view="books">Books</a>
             <a href="#" class="nav-item" id="snow-menu-item">Let it snow<span class="nav-icon-right">❄️</span></a>
             <a href="#" class="nav-item" id="theme-menu-item">Dark Mode</a>
         </nav>
@@ -100,6 +100,31 @@
             </div>
             <div id="user-detail-content" class="detail-content">
                 <p>Select a user to view details</p>
+            </div>
+        </section>
+
+        <!-- Books View -->
+        <section id="books-list-section" class="hidden">
+            <h2>Bestsellers</h2>
+            <div class="section-header">
+                <div class="search-box">
+                    <input type="text" id="book-search-input" placeholder="Search books..." autocomplete="off" />
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="books-table">
+                    <thead>
+                        <tr>
+                            <th>ISBN</th>
+                            <th>Title</th>
+                            <th>Year</th>
+                            <th>Sold Copies</th>
+                        </tr>
+                    </thead>
+                    <tbody id="books-body">
+                        <!-- Books will be populated here -->
+                    </tbody>
+                </table>
             </div>
         </section>
 
@@ -264,6 +289,7 @@
     <script src="js/modules/book-search.js"></script>
     <script src="js/modules/order-display.js"></script>
     <script src="js/modules/user-display.js"></script>
+    <script src="js/modules/book-display.js"></script>
     <script src="js/modules/order-form.js"></script>
     <script src="js/modules/new-user-form.js"></script>
 

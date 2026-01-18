@@ -85,6 +85,7 @@ async function switchView(view) {
     document.getElementById('order-detail-panel').classList.remove('open');
     document.getElementById('users-list-section').classList.add('hidden');
     document.getElementById('user-detail-panel').classList.remove('open');
+    document.getElementById('books-list-section').classList.add('hidden');
     document.getElementById('new-order-section').classList.add('hidden');
     const newUserSection = document.getElementById('new-user-section');
     if (newUserSection) newUserSection.classList.add('hidden');
@@ -119,6 +120,17 @@ async function switchView(view) {
             newBtn.textContent = 'New User';
             initNewUserForm(API_URL);
         }
+    } else if (view === 'books') {
+        document.getElementById('books-list-section').classList.remove('hidden');
+        headerTitle.textContent = 'Books';
+        newBtn.classList.add('hidden');
+        currentView = 'books';
+        fetchBestsellers(API_URL);
+    }
+
+    // Show/hide the new button based on view
+    if (view !== 'books') {
+        newBtn.classList.remove('hidden');
     }
 
     return true;
@@ -147,6 +159,9 @@ initNewUserFormHandlers(API_URL, switchView);
 
 // Initialize user search
 initUserSearch();
+
+// Initialize book search
+initBookSearch();
 
 // Close detail panel buttons
 document.getElementById('close-detail').addEventListener('click', closeDetailPanel);
