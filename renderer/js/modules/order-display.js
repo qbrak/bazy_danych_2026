@@ -200,4 +200,5 @@ function renderOrderDetail(order) {
 function closeDetailPanel() {
     const detailPanel = document.getElementById('order-detail-panel');
     detailPanel.classList.remove('open');
+    detailPanel.style.height = '';  // Clear inline height from resizing
 }

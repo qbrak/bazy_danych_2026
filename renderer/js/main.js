@@ -59,6 +59,8 @@ async function switchView(view) {
     // Hide all sections
     document.getElementById('inventory-list-section').classList.add('hidden');
     document.getElementById('order-detail-panel').classList.remove('open');
+    document.getElementById('users-list-section').classList.add('hidden');
+    document.getElementById('user-detail-panel').classList.remove('open');
     document.getElementById('new-order-section').classList.add('hidden');
 
     // Update header title
@@ -69,6 +71,10 @@ async function switchView(view) {
         document.getElementById('inventory-list-section').classList.remove('hidden');
         headerTitle.textContent = 'Orders';
         fetchOrders(API_URL);
+    } else if (view === 'users') {
+        document.getElementById('users-list-section').classList.remove('hidden');
+        headerTitle.textContent = 'Users';
+        fetchUsers(API_URL);
     } else if (view === 'new-order') {
         document.getElementById('new-order-section').classList.remove('hidden');
         headerTitle.textContent = 'New Order';
@@ -89,12 +95,16 @@ initShortcutHints();
 // Initialize snow effect
 initSnowEffect();
 
+// Initialize resizable detail panels
+initAllPanelResizers();
+
 // Initialize order form handlers
 initSameAsShippingCheckbox();
 initOrderFormHandlers(API_URL, switchView);
 
-// Close detail panel button
+// Close detail panel buttons
 document.getElementById('close-detail').addEventListener('click', closeDetailPanel);
+document.getElementById('close-user-detail').addEventListener('click', closeUserDetailPanel);
 
 // Keyboard shortcuts
 document.addEventListener('keydown', async (e) => {

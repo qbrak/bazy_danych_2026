@@ -196,7 +196,8 @@ table {
     margin-top: 20px;
 }
 
-#inventory-list-section {
+#inventory-list-section,
+#users-list-section {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -279,17 +280,51 @@ th {
 
 /* Detail Panel Styles */
 .detail-panel {
-    max-height: 0;
+    height: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease-out;
+    transition: height 0.3s ease-out;
     border-top: none;
     background-color: var(--bg-color);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
 }
 
 .detail-panel.open {
-    max-height: 50vh;
-    overflow-y: auto;
+    height: 40vh;
+    overflow: hidden;
     border-top: 1px solid var(--border-color);
+}
+
+.detail-panel.resizing {
+    transition: none;
+    user-select: none;
+}
+
+.resize-handle {
+    height: 6px;
+    background: var(--border-color);
+    cursor: ns-resize;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.resize-handle::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 4px;
+    background: var(--text-color);
+    opacity: 0.3;
+    border-radius: 2px;
+}
+
+.resize-handle:hover::after,
+.detail-panel.resizing .resize-handle::after {
+    opacity: 0.6;
 }
 
 .detail-header {
@@ -299,9 +334,7 @@ th {
     padding: 15px 20px;
     background-color: var(--header-bg);
     border-bottom: 1px solid var(--border-color);
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    flex-shrink: 0;
 }
 
 .detail-header h2 {
@@ -327,6 +360,9 @@ th {
 
 .detail-content {
     padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .detail-section {
@@ -884,4 +920,70 @@ tbody tr:hover {
 .danger-btn:hover {
     background-color: #c82333;
     border-color: #c82333;
+}
+
+/* ============= USER DETAIL STYLES ============= */
+
+.addresses-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.address-card {
+    padding: 12px 15px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.address-line {
+    line-height: 1.5;
+}
+
+.empty-state {
+    color: var(--text-color);
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.review-card {
+    padding: 12px 15px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.review-book {
+    font-weight: 500;
+}
+
+.review-stars {
+    color: #f5a623;
+    letter-spacing: 2px;
+}
+
+.review-date {
+    font-size: 0.85em;
+    color: var(--text-color);
+    opacity: 0.6;
+    margin-bottom: 8px;
+}
+
+.review-text {
+    margin: 0;
+    line-height: 1.5;
 }

@@ -348,6 +348,11 @@ function initOrderFormHandlers(apiUrl, switchView) {
                 throw new Error(errorData.error || 'Failed to create order');
             }
 
+            // Reset form before switching to avoid "unsaved changes" prompt
+            document.getElementById('new-order-form').reset();
+            document.getElementById('order-items-container').innerHTML = '';
+            document.getElementById('customer-search-input').value = '';
+
             alert('Order created successfully!');
             switchView('orders');
         } catch (error) {

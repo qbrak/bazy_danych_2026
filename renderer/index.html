@@ -24,7 +24,7 @@
 
         <nav id="nav-menu" class="nav-menu">
             <a href="#" class="nav-item active" data-view="orders">Orders</a>
-            <a href="#" class="nav-item disabled" data-view="users">Users</a>
+            <a href="#" class="nav-item" data-view="users">Users</a>
             <a href="#" class="nav-item disabled" data-view="books">Books</a>
             <a href="#" class="nav-item" id="theme-menu-item">Dark Mode</a>
         </nav>
@@ -51,12 +51,45 @@
         </section>
 
         <section id="order-detail-panel" class="detail-panel">
+            <div class="resize-handle"></div>
             <div class="detail-header">
                 <h2>Order Details</h2>
                 <button id="close-detail" class="close-btn">×</button>
             </div>
             <div id="detail-content" class="detail-content">
                 <p>Select an order to view details</p>
+            </div>
+        </section>
+
+        <!-- Users View -->
+        <section id="users-list-section" class="hidden">
+            <h2>User List</h2>
+            <div class="table-container">
+                <table id="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Verified</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-body">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="user-detail-panel" class="detail-panel">
+            <div class="resize-handle"></div>
+            <div class="detail-header">
+                <h2>User Details</h2>
+                <button id="close-user-detail" class="close-btn">×</button>
+            </div>
+            <div id="user-detail-content" class="detail-content">
+                <p>Select a user to view details</p>
             </div>
         </section>
 
@@ -147,9 +180,11 @@
     <!-- Application Modules (order matters!) -->
     <script src="js/modules/snow-effect.js"></script>
     <script src="js/modules/theme-handler.js"></script>
+    <script src="js/modules/panel-resize.js"></script>
     <script src="js/modules/customer-search.js"></script>
     <script src="js/modules/book-search.js"></script>
     <script src="js/modules/order-display.js"></script>
+    <script src="js/modules/user-display.js"></script>
     <script src="js/modules/order-form.js"></script>
     
     <!-- Main Application -->

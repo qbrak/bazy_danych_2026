@@ -119,7 +119,7 @@ The Python backend will be automatically spawned by the Electron app. It will at
       -e POSTGRES_PASSWORD=testpass \
       -e POSTGRES_DB=testdb \
       -p 5433:5432 \
-      postgres:16
+      postgres:18
     ```
 
     NOTE: using 5433 locally, to not conflict with other local databases
