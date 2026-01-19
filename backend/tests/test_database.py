@@ -498,15 +498,15 @@ class TestDatabaseConstraints:
         user_result = db_cursor.fetchone()
         db_cursor.execute("SELECT isbn FROM books LIMIT 1")
         book_result = db_cursor.fetchone()
-        
+
         if user_result is None or book_result is None:
             pytest.skip("No users or books found")
-        
+
         # Try to insert a review with invalid stars (> 5)
         with pytest.raises(psycopg.errors.CheckViolation):
             db_cursor.execute("""
-                INSERT INTO reviews (user_id, isbn, review_body, stars)
-                VALUES (%s, %s, 'Great book!', 10)
+                INSERT INTO reviews (user_id, isbn, review_body, stars, review_date)
+                VALUES (%s, %s, 'Great book!', 10, CURRENT_DATE)
             """, (user_result["user_id"], book_result["isbn"]))
         
         db_connection.rollback()

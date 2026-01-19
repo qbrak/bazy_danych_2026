@@ -70,7 +70,9 @@ def get_db_connection() -> psycopg.Connection:
 @app.route('/user_order_summary', methods=['GET'])
 def get_orders():
     """List all orders with summary info: order_id, user_id, status, total_amount"""
-    query = """SELECT * FROM user_order_summary"""
+    query = """SELECT * FROM user_order_summary
+    ORDER BY order_id DESC
+    """
     with get_db_connection() as conn:
         with conn.cursor(row_factory=dict_row) as cursor:
             cursor.execute(query)
@@ -543,15 +545,15 @@ def get_price_of(isbn):
 
     if valid_only:
         query = """\
-            SELECT price_id, unit_price, valid_until FROM prices
+            SELECT price_id, unit_price, valid_from, valid_until FROM prices
             WHERE isbn = %s AND valid_until IS NULL
-            ORDER BY valid_until DESC
+            ORDER BY valid_from DESC
             """
     else:
         query = """\
-            SELECT price_id, unit_price, valid_until FROM prices
+            SELECT price_id, unit_price, valid_from, valid_until FROM prices
             WHERE isbn = %s
-            ORDER BY valid_until DESC
+            ORDER BY valid_from ASC
             """
 
     with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
@@ -640,8 +642,14 @@ def get_user_reviews(user_id):
 
 @app.route('/books/<isbn>/reviews', methods=['GET'])
 def get_book_reviews(isbn):
-    """Get reviews for a book"""
-    query = "SELECT * FROM reviews WHERE isbn = %s"
+    """Get reviews for a book with user info"""
+    query = """
+        SELECT r.*, u.name, u.surname
+        FROM reviews r
+        JOIN users u USING (user_id)
+        WHERE r.isbn = %s
+        ORDER BY r.review_date DESC
+    """
     with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cursor:
         cursor.execute(query, (isbn, ))
         items = cursor.fetchall()

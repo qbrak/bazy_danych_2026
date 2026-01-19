@@ -86,6 +86,7 @@ async function switchView(view) {
     document.getElementById('users-list-section').classList.add('hidden');
     document.getElementById('user-detail-panel').classList.remove('open');
     document.getElementById('books-list-section').classList.add('hidden');
+    document.getElementById('book-detail-panel').classList.remove('open');
     document.getElementById('new-order-section').classList.add('hidden');
     const newUserSection = document.getElementById('new-user-section');
     if (newUserSection) newUserSection.classList.add('hidden');
@@ -166,6 +167,7 @@ initBookSearch();
 // Close detail panel buttons
 document.getElementById('close-detail').addEventListener('click', closeDetailPanel);
 document.getElementById('close-user-detail').addEventListener('click', closeUserDetailPanel);
+document.getElementById('close-book-detail').addEventListener('click', closeBookDetailPanel);
 
 // Keyboard shortcuts
 document.addEventListener('keydown', async (e) => {

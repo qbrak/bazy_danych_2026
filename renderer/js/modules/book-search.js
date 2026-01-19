@@ -78,8 +78,8 @@ function initBookSearch(inputElement, resultsElement, onBookSelected) {
             return;
         }
 
-        // Check if query looks like an ISBN (digits and dashes)
-        const isIsbnQuery = /^[\d-]+$/.test(searchTerm);
+        // Check if query looks like an ISBN (digits and dashes, at least 5 chars to avoid matching years)
+        const isIsbnQuery = /^[\d-]+$/.test(searchTerm) && searchTerm.replace(/-/g, '').length >= 5;
 
         if (isIsbnQuery) {
             // For ISBN queries, filter by exact prefix match first
