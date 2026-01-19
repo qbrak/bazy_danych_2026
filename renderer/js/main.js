@@ -161,8 +161,8 @@ initNewUserFormHandlers(API_URL, switchView);
 // Initialize user search
 initUserSearch();
 
-// Initialize book search
-initBookSearch();
+// Initialize bestsellers table search
+initBestsellersSearch();
 
 // Close detail panel buttons
 document.getElementById('close-detail').addEventListener('click', closeDetailPanel);

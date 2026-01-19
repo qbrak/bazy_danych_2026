@@ -117,8 +117,8 @@ function highlightBookMatch(text, matches, keys) {
     return result;
 }
 
-// Initialize book search
-function initBookSearch() {
+// Initialize bestsellers table search
+function initBestsellersSearch() {
     const searchInput = document.getElementById('book-search-input');
     if (!searchInput) return;
 
