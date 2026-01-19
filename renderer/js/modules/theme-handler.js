@@ -6,23 +6,35 @@ const isMac = navigator.userAgentData?.platform === 'macOS'
 const modKey = isMac ? '⌘' : 'Ctrl+';
 
 function initShortcutHints() {
-    // New Order button tooltip
-    const newOrderBtn = document.getElementById('new-order-btn');
-    if (newOrderBtn) {
-        newOrderBtn.dataset.tooltip = `${modKey}N`;
+    // New Order/User button tooltip
+    const newBtn = document.getElementById('new-btn');
+    if (newBtn) {
+        newBtn.dataset.tooltip = `${modKey}N`;
     }
 
-    // Form action buttons
-    const submitBtn = document.getElementById('submit-order-btn');
-    const cancelBtn = document.getElementById('cancel-order-btn');
+    // Form action buttons - Order form
+    const submitOrderBtn = document.getElementById('submit-order-btn');
+    const cancelOrderBtn = document.getElementById('cancel-order-btn');
+
+    if (submitOrderBtn) {
+        submitOrderBtn.dataset.tooltip = `${modKey}Enter`;
+    }
+    if (cancelOrderBtn) {
+        cancelOrderBtn.dataset.tooltip = 'Esc';
+    }
+
+    // Form action buttons - User form
+    const submitUserBtn = document.getElementById('submit-user-btn');
+    const cancelUserBtn = document.getElementById('cancel-user-btn');
+
+    if (submitUserBtn) {
+        submitUserBtn.dataset.tooltip = `${modKey}Enter`;
+    }
+    if (cancelUserBtn) {
+        cancelUserBtn.dataset.tooltip = 'Esc';
+    }
+
     const hintSpan = document.querySelector('.shortcut-hint');
-
-    if (submitBtn) {
-        submitBtn.dataset.tooltip = `${modKey}Enter`;
-    }
-    if (cancelBtn) {
-        cancelBtn.dataset.tooltip = 'Esc';
-    }
     if (hintSpan) {
         hintSpan.textContent = `${modKey}Enter to submit · Esc to cancel`;
     }

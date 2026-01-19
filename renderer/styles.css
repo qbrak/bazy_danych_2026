@@ -217,6 +217,9 @@ header {
 .nav-icon-right {
     margin-left: auto;
     opacity: 0.7;
+    width: 1.2em;
+    text-align: center;
+    font-size: 1.1em;
 }
 
 .nav-item:hover:not(.disabled) {
